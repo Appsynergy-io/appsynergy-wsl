@@ -122,7 +122,9 @@ def package_check():
     # Exactly the integration/package-database checks used by CI. Both offline
     # builders receive only their public inputs, never signing credentials.
     from .rootfs import integration
-    integration()
+    # A gate must never overwrite an existing separately signed build artifact.
+    with tempfile.TemporaryDirectory(prefix="wsl-package-check-") as temp:
+        integration(Path(temp))
 
 
 def main():

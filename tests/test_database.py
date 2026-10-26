@@ -7,9 +7,23 @@ from unittest.mock import patch
 
 from wslbuild.evidence import digest
 from wslbuild.publication import build_database
+from wslbuild.rootfs import integration
 
 
 class DatabaseTests(unittest.TestCase):
+    def test_signed_package_cannot_be_overwritten_by_a_rebuild(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "appsynergy-wsl-integration-0.1.0-1-any.pkg.tar.zst"
+            package.write_bytes(b"previous signed bytes")
+            Path(str(package) + ".sig").write_bytes(b"signature fixture")
+            before = digest(package)
+            with patch("wslbuild.rootfs.subprocess.run") as execute:
+                with self.assertRaisesRegex(ValueError, "already signed"):
+                    integration(root)
+                execute.assert_not_called()
+            self.assertEqual(digest(package), before)
+
     def test_repo_add_alias_is_exported_as_one_regular_hash_bound_file(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
