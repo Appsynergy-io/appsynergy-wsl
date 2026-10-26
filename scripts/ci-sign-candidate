@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Keep release-manifest credentials outside candidate build/test execution."""
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") != "refs/heads/main":
+    raise SystemExit("Manifest signing requires trusted main")
+secret = os.environ.pop("WSL_MANIFEST_SIGNING_KEY", "")
+if not secret:
+    print("Missing WSL_MANIFEST_SIGNING_KEY in the isolated candidate-signing environment", file=sys.stderr)
+    raise SystemExit(2)
+with tempfile.TemporaryDirectory(prefix="wsl-manifest-signing-") as temp:
+    key = Path(temp) / "release.pem"
+    key.write_text(secret)
+    key.chmod(0o600)
+    subprocess.run([sys.executable, str(Path(__file__).with_name("sign-candidate")), sys.argv[1], "--private-key", str(key)], check=True)

@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Release only an available, unchanged, maintainer-accepted trusted candidate."""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+from pathlib import Path
+from urllib.parse import quote
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.candidate import REPOSITORY, acceptance, api, git
+from wslbuild.evidence import digest, load_json, require
+from wslbuild.inputs import ROOT
+from wslbuild.publication import publish
+
+
+class GitHubStore:
+    def __init__(self):
+        self.tags = {}
+
+    def optional(self, path):
+        result = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=60)
+        if result.returncode:
+            if "HTTP 404" in result.stderr:
+                return None
+            raise RuntimeError("GitHub metadata request failed: " + result.stderr)
+        return json.loads(result.stdout)
+
+    def latest_version(self):
+        release = self.optional(f"repos/{REPOSITORY}/releases/latest")
+        if release is None:
+            return None
+        require(re.fullmatch(r"appsynergy-wsl-v\d+\.\d+\.\d+", release["tag_name"]), "unexpected latest release tag")
+        return release["tag_name"].removeprefix("appsynergy-wsl-v")
+
+    def ensure_release(self, tag, source, acceptance_commit):
+        ref = self.optional(f"repos/{REPOSITORY}/git/ref/tags/{tag}")
+        if ref:
+            obj = ref["object"]
+            if obj["type"] == "tag":
+                obj = api(f"repos/{REPOSITORY}/git/tags/{obj['sha']}")["object"]
+            require(obj["type"] == "commit" and obj["sha"] == source, "conflicting source tag")
+        release = self.optional(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        if release and ref is None:
+            require(release['target_commitish'] == source, 'conflicting draft source')
+        if release is None:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".md") as notes:
+                notes.write(f"AppSynergy WSL {tag.removeprefix('appsynergy-wsl-v')}\n\nAccepted source: `{source}`.\nAcceptance commit: `{acceptance_commit}`.\n\nThese are the exact maintainer-accepted bytes. Windows 11 Enterprise x64 / WSL2 / x86-64-v3.\nSee acceptance.json and signed promotion.json for evidence.\n")
+                notes.flush()
+                subprocess.run(["gh", "release", "create", tag, "--repo", REPOSITORY, "--target", source, "--draft",
+                                "--title", tag, "--notes-file", notes.name], check=True, timeout=60)
+            release = api(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        self.tags[release["id"]] = tag
+        return release["id"]
+
+    def assets(self, release):
+        return api(f"repos/{REPOSITORY}/releases/{release}/assets?per_page=100")
+
+    def asset_hash(self, release, name):
+        matches = [a for a in self.assets(release) if a["name"] == name]
+        require(len(matches) <= 1, "duplicate release asset")
+        if not matches:
+            return None
+        value = matches[0].get("digest") or ""
+        require(re.fullmatch(r"sha256:[0-9a-f]{64}", value), "release asset has no verifiable digest")
+        return value.removeprefix("sha256:")
+
+    def upload(self, release, name, path):
+        require(Path(path).name == name, "upload filename mismatch")
+        subprocess.run(["gh", "release", "upload", self.tags[release], str(path), "--repo", REPOSITORY], check=True, timeout=300)
+
+    def download_plan(self, release, output):
+        name = 'publication-plan.zip'
+        assets = [a for a in self.assets(release) if a['name'] == name]
+        if not assets:
+            return False
+        require(len(assets) == 1 and assets[0]['size'] <= 2 * 1024**2, 'publication plan size')
+        with output.open('wb') as stream:
+            subprocess.run(['gh', 'api', '-H', 'Accept: application/octet-stream',
+                            f"repos/{REPOSITORY}/releases/assets/{assets[0]['id']}"], stdout=stream, check=True, timeout=60)
+        require(self.asset_hash(release, name) == digest(output), 'publication plan hash mismatch')
+        return True
+
+    def make_public(self, release):
+        if not api(f"repos/{REPOSITORY}/releases/{release}")["draft"]:
+            return
+        subprocess.run(["gh", "api", "--method", "PATCH", f"repos/{REPOSITORY}/releases/{release}",
+                        "-F", "draft=false", "-f", "make_latest=false"], check=True, capture_output=True, timeout=60)
+
+    def public_hash(self, tag, name):
+        release = api(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        asset = next(a for a in release["assets"] if a["name"] == name)
+        require(0 < asset["size"] <= 32 * 1024**3, "public asset size")
+        # Always download afresh without credentials. A cache hit proves nothing
+        # about public availability, so the normal build download cache is bypassed.
+        with tempfile.NamedTemporaryFile() as output:
+            url = f"https://github.com/{REPOSITORY}/releases/download/{quote(tag)}/{quote(name)}"
+            subprocess.run(["curl", "--disable", "--fail", "--silent", "--show-error", "--location", "--proto", "=https",
+                            "--proto-redir", "=https", "--connect-timeout", "20", "--max-time", "240",
+                            "--max-filesize", str(asset["size"]), "--output", output.name, url], check=True, timeout=250)
+            return digest(Path(output.name))
+
+    def advance_channel(self, version, source, files):
+        tag = "repo-wsl-x86_64"
+        release = self.optional(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        if release is None:
+            subprocess.run(["gh", "release", "create", tag, "--repo", REPOSITORY, "--target", source, "--prerelease",
+                            "--title", "Signed WSL integration package channel", "--notes", "Signed package database. Product releases and acceptance evidence are versioned separately.",
+                            "--latest=false"], check=True, timeout=60)
+            release = api(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        release_id = release["id"]
+        self.tags[release_id] = tag
+        # Immutable packages first. Database pointer replacement can briefly fail
+        # signature checks, which is fail-closed. Repeating this operation repairs
+        # an interrupted pointer upload; prior versioned releases remain intact.
+        for name in sorted(n for n in files if ".pkg.tar.zst" in n):
+            current = self.asset_hash(release_id, name)
+            require(current in {None, digest(files[name])}, "conflicting channel package")
+            if current is None:
+                self.upload(release_id, name, files[name])
+            require(self.public_hash(tag, name) == digest(files[name]), "public channel package mismatch")
+        for name in ("appsynergy-wsl.db", "appsynergy-wsl.db.sig"):
+            expected = digest(files[name])
+            matches = [a for a in self.assets(release_id) if a["name"] == name]
+            if matches and self.asset_hash(release_id, name) != expected:
+                subprocess.run(["gh", "api", "--method", "DELETE", f"repos/{REPOSITORY}/releases/assets/{matches[0]['id']}"], check=True, timeout=60)
+                matches = []
+            if not matches:
+                self.upload(release_id, name, files[name])
+            require(self.public_hash(tag, name) == expected, "public channel database mismatch")
+
+    def advance_latest(self, release):
+        latest = self.latest_version()
+        version = self.tags[release].removeprefix("appsynergy-wsl-v")
+        require(latest is None or tuple(map(int, latest.split("."))) <= tuple(map(int, version.split("."))), "stale latest pointer")
+        subprocess.run(["gh", "api", "--method", "PATCH", f"repos/{REPOSITORY}/releases/{release}",
+                        "-f", "make_latest=true"], check=True, capture_output=True, timeout=60)
+
+
+def main():
+    require(os.environ.get("GITHUB_EVENT_NAME") == "push" and os.environ.get("GITHUB_REF") == "refs/heads/main", "promotion only on main push")
+    secret = os.environ.pop("WSL_PACKAGE_SIGNING_KEY", "")
+    manifest_secret = os.environ.pop('WSL_MANIFEST_SIGNING_KEY', '')
+    if not secret or not manifest_secret:
+        print("Missing WSL_PACKAGE_SIGNING_KEY or WSL_MANIFEST_SIGNING_KEY in isolated release environment", file=sys.stderr)
+        return 2
+    candidate, manifest, report = acceptance()
+    inventory = load_json(candidate / "inventory.json")
+    packages = list(candidate.glob("*.pkg.tar.zst"))
+    require(len(packages) == 1 and packages[0].name == inventory["integration"]["filename"]
+            and digest(packages[0]) == inventory["integration"]["sha256"]
+            and digest(Path(str(packages[0]) + ".sig")) == inventory["integration"]["signature_sha256"], "accepted package bytes changed")
+    image = load_json(ROOT / "sources/package-builder.lock.json")["image"]
+    store = GitHubStore()
+    acceptance_commit = git('rev-parse', 'HEAD')
+    latest = store.latest_version()
+    require(latest is None or tuple(map(int, latest.split('.'))) <= tuple(map(int, manifest['version'].split('.'))), 'stale promotion')
+    release_id = store.ensure_release('appsynergy-wsl-v' + manifest['version'], manifest['source'], acceptance_commit)
+    with tempfile.TemporaryDirectory(prefix="wsl-promotion-") as temp:
+        directory = Path(temp)
+        public = directory / "public"
+        public.mkdir(mode=0o700)
+        plan = directory / 'publication-plan.zip'
+        metadata_names = {'appsynergy-wsl.db', 'appsynergy-wsl.db.sig', 'promotion.json', 'promotion.json.sig', 'promotion.json.rsa.sig', 'acceptance.json'}
+        reuse_plan = store.download_plan(release_id, plan)
+        if reuse_plan:
+            with zipfile.ZipFile(plan) as stream:
+                require(set(stream.namelist()) == metadata_names and len(stream.infolist()) == len(metadata_names)
+                        and sum(m.file_size for m in stream.infolist()) <= 2 * 1024**2, 'publication plan inventory')
+                for member in stream.infolist():
+                    require((member.external_attr >> 16) & 0o170000 != 0o120000, 'publication plan symlink')
+                stream.extractall(public)
+            proof = load_json(public / 'promotion.json')
+            require(proof['source'] == manifest['source'] and proof['acceptance_commit'] == acceptance_commit
+                    and proof['manifest_sha256'] == digest(candidate / 'manifest.json')
+                    and proof['maintainer_acceptance_sha256'] == digest(report)
+                    and proof['database_sha256'] == digest(public / 'appsynergy-wsl.db'), 'conflicting publication plan')
+        else:
+            shutil.copyfile(packages[0], public / packages[0].name)
+        # Database construction has no signing credential and runs no package hooks.
+            subprocess.run(["docker", "run", "--rm", "--network=none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop=ALL",
+                        "--security-opt=no-new-privileges", "--mount", f"type=bind,src={public},dst=/output", image,
+                        "bash", "-c", "repo-add /output/appsynergy-wsl.db.tar.gz /output/*.pkg.tar.zst"], check=True, timeout=60)
+            shutil.copyfile(public / "appsynergy-wsl.db.tar.gz", public / "appsynergy-wsl.db")
+            proof = {"schema": 1, "version": manifest["version"], "source": manifest["source"], "acceptance_commit": acceptance_commit,
+                 "database_sha256": digest(public / 'appsynergy-wsl.db'),
+                 "manifest_sha256": digest(candidate / "manifest.json"), "maintainer_acceptance_sha256": digest(report)}
+            (public / "promotion.json").write_text(json.dumps(proof, indent=2) + "\n")
+            shutil.copyfile(report, public / "acceptance.json")
+        signing = directory / "signing"
+        signing.mkdir(mode=0o700)
+        gpg = ["gpg", "--no-options", "--homedir", str(signing), "--batch"]
+        fingerprint = load_json(ROOT / "sources/signing.lock.json")["integration_fingerprint"]
+        try:
+            if reuse_plan:
+                subprocess.run([*gpg, '--import', str(ROOT / 'sources/wsl-integration-signing.asc')], check=True, timeout=30)
+            else:
+                subprocess.run([*gpg, "--import"], input=secret.encode(), check=True, timeout=30)
+            for name in ("appsynergy-wsl.db", "promotion.json"):
+                if not reuse_plan:
+                    subprocess.run([*gpg, "--local-user", fingerprint, "--detach-sign", str(public / name)], check=True, timeout=30)
+                subprocess.run([*gpg, '--verify', str(public / (name + '.sig')), str(public / name)], check=True, timeout=30)
+        finally:
+            subprocess.run(["gpgconf", "--homedir", str(signing), "--kill", "gpg-agent"], capture_output=True, timeout=15)
+        if not reuse_plan:
+            rsa_private = signing / 'release.pem'
+            rsa_private.write_text(manifest_secret)
+            rsa_private.chmod(0o600)
+            subprocess.run(['openssl', 'dgst', '-sha256', '-sign', str(rsa_private), '-out',
+                            str(public / 'promotion.json.rsa.sig'), str(public / 'promotion.json')], check=True, timeout=30)
+            rsa_private.unlink()
+        subprocess.run(['openssl', 'dgst', '-sha256', '-verify', str(ROOT / 'windows/trust/release.pem'), '-signature',
+                        str(public / 'promotion.json.rsa.sig'), str(public / 'promotion.json')], check=True, timeout=30)
+        if not reuse_plan:
+            with zipfile.ZipFile(plan, 'w', compression=zipfile.ZIP_DEFLATED) as stream:
+                for name in sorted(metadata_names):
+                    stream.write(public / name, name)
+            store.upload(release_id, plan.name, plan)
+            require(store.asset_hash(release_id, plan.name) == digest(plan), 'publication plan upload mismatch')
+        files = {p.name: p for p in candidate.iterdir() if p.is_file()}
+        files[plan.name] = plan
+        files.update({p.name: p for p in public.iterdir() if p.is_file() and p.name != "appsynergy-wsl.db.tar.gz"})
+        require(sum(p.stat().st_size for p in files.values()) <= 8 * 1024**3, "release size limit")
+        print(publish(store, manifest["version"], manifest["source"], acceptance_commit, files))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

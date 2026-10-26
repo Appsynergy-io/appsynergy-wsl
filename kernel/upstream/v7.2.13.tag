@@ -1,0 +1,22 @@
+object 3c172eede0d6b889ead876f45cc843070209208f
+type commit
+tag v7.2.13
+tagger Greg Kroah-Hartman <gregkh@linuxfoundation.org> 1793026881 +0100
+
+This is the 7.2.13 stable release
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAABCgAdFiEEZH8oZUiU471FcZm+ONu9yGCSaT4FAmrfa0EACgkQONu9yGCS
+aT6NxRAAwK5fTf+VH47g4oISjC/t2kGdkKrq+b1iS0xhvC1F1bkB7izPwmfCDKYD
+0s5q++n4ep9JfPx/kRXRBVcsYTBEAKwd6KOAEcaXhEg+2CRop4CJ+nuTtZwF+fSy
+m7x3d8bOgAry8c1akCeC9NCioXTQGynxy1SFlZiydaB4M0JPT2kdgqJlRjtqZOrg
++ptWZnx4WPlT+ZEF9cnDmHvZ9mIILCEKseI11q8sFwySeebhe5PN9cF/k9wpTNRD
+yAAB3Aa1sFWafFJv4z/2MapwoX7CSPlbToX2VYl8aBre/h/bLxWo1T8RwJw8xtcZ
+HBdMvbA9CHwHDmdwp3bHimMiw0Al1kWysZHfEafTYEyLJuX2PNGtkscHh8gji3ub
+Na6KvTK4AGBr9Tru6+d5H1frbfqLXV8c20FE+lxx4a39nR08LYtbQJB4Lr2Pfnz2
+lwMb6IZOMYIq5EO2mJOOlt93QbjQnQjRNXFRQ1sj97VtrUGzwjolMi8zH4eSoNaa
+GhfSOhFxhRFKLM/RYXQcCca3AdFbxEZC78tQ6H5/BgKbkn39Q5DBes3Aj4N1LTok
+zjVVBxXhoFbN9gE1KAEpQLdRoSemQyGERVTnNKlBpNizle6cVy7rpnkmz29ILwfo
+f616lkpZQdlPGcDOJ3UUOC6UUis6EFyf3VHF7PiPpXjherfJTX0=
+=kt5J
+-----END PGP SIGNATURE-----

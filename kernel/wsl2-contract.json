@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "reference": {
+    "repository": "https://github.com/microsoft/WSL2-Linux-Kernel.git",
+    "commit": "d504d40ab83839cb61942a812a99d183c42227b9",
+    "path": "arch/x86/configs/config-wsl",
+    "sha256": "44e47698d8b66fee94bd63c90348bae400f88f90c6d33536a2a1dbb5859fcf6a",
+    "purpose": "Compatibility analysis only; never a product source or configuration baseline."
+  },
+  "runtime_reference": {
+    "repository": "https://github.com/microsoft/WSL.git",
+    "commit": "48b5353cb36328dd0bcd140c4c2f3d90232c3a73",
+    "path": "src/linux/init/main.cpp",
+    "sha256": "5e4f7117cd55074d322ccda42bff1447611777d70614bea3534303909dd8ba5d",
+    "requirements": "OverlayFS must be built in for the pre-module mount. The flat VHD layout is supported by this runtime; its announced future removal requires a reviewed layout migration before claiming support for that future version."
+  },
+  "required_builtin": {
+    "boot": [
+      "X86_64",
+      "ACPI",
+      "PCI",
+      "PCI_MSI",
+      "IRQ_REMAP",
+      "EFI",
+      "EFI_STUB",
+      "HYPERV",
+      "HYPERV_VMBUS",
+      "HYPERV_TIMER",
+      "HYPERV_STORAGE",
+      "SCSI",
+      "BLK_DEV_SD",
+      "BLK_DEV_INITRD",
+      "RD_GZIP",
+      "RD_ZSTD",
+      "EXT4_FS",
+      "OVERLAY_FS",
+      "DEVTMPFS",
+      "DEVTMPFS_MOUNT"
+    ],
+    "integration": [
+      "BINFMT_MISC",
+      "VSOCKETS",
+      "HYPERV_VSOCKETS",
+      "NET_9P",
+      "NET_9P_FD",
+      "NET_9P_VIRTIO",
+      "9P_FS",
+      "9P_FS_POSIX_ACL",
+      "VIRTIO",
+      "VIRTIO_PCI",
+      "VIRTIO_MMIO",
+      "VIRTIO_PMEM",
+      "VIRTIO_CONSOLE",
+      "HYPERV_UTILS",
+      "HYPERV_BALLOON",
+      "HYPERV_KEYBOARD",
+      "PCI_HYPERV",
+      "PCI_HYPERV_INTERFACE",
+      "FUSE_FS",
+      "VIRTIO_FS"
+    ],
+    "network": [
+      "NET",
+      "INET",
+      "IPV6",
+      "UNIX",
+      "PACKET",
+      "HYPERV_NET",
+      "VIRTIO_NET",
+      "NETFILTER"
+    ],
+    "systemd": [
+      "NAMESPACES",
+      "UTS_NS",
+      "IPC_NS",
+      "PID_NS",
+      "NET_NS",
+      "USER_NS",
+      "CGROUPS",
+      "MEMCG",
+      "CGROUP_PIDS",
+      "CGROUP_SCHED",
+      "CGROUP_BPF",
+      "EPOLL",
+      "SIGNALFD",
+      "TIMERFD",
+      "EVENTFD",
+      "INOTIFY_USER",
+      "FHANDLE",
+      "SECCOMP",
+      "SECCOMP_FILTER",
+      "TMPFS",
+      "TMPFS_POSIX_ACL",
+      "TMPFS_XATTR",
+      "UNIX98_PTYS"
+    ],
+    "modules": [
+      "MODULES",
+      "MODULE_UNLOAD",
+      "IKCONFIG",
+      "IKCONFIG_PROC"
+    ],
+    "product": [
+      "GENERIC_CPU",
+      "LTO_CLANG_THIN",
+      "FORTIFY_SOURCE"
+    ]
+  },
+  "required_loadable": [
+    "DUMMY",
+    "VETH",
+    "BRIDGE",
+    "BRIDGE_NETFILTER",
+    "NETFILTER_XT_MATCH_PHYSDEV",
+    "NF_CONNTRACK_BRIDGE",
+    "VSOCKETS_DIAG"
+  ],
+  "required_values": {
+    "X86_64_VERSION": "3"
+  },
+  "forbidden": [
+    "X86_NATIVE_CPU",
+    "HYPERV_VTL_MODE"
+  ],
+  "excluded_capabilities": [
+    "DXGKRNL/GPU acceleration",
+    "USB passthrough",
+    "full desktop sessions"
+  ],
+  "acceptance_required": [
+    "boot-storage",
+    "windows-filesystem-sharing",
+    "network-dns-https",
+    "windows-interop-vsock",
+    "namespaces",
+    "cgroups",
+    "module-load",
+    "shutdown",
+    "reboot",
+    "failed-boot-rollback"
+  ]
+}

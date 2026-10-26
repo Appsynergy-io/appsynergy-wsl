@@ -1,0 +1,12 @@
+{
+  "PowerShell": {
+    "version": "v7.4.22",
+    "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.4.22/powershell-7.4.22-linux-x64.tar.gz",
+    "sha256": "9de443bef974f219c98a33b0f4096aace7f30b42188f37a1b14c5da7e82c8a6a"
+  },
+  "PSScriptAnalyzer": {
+    "version": "1.25.0",
+    "url": "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/1.25.0/PSScriptAnalyzer.1.25.0.nupkg",
+    "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60"
+  }
+}

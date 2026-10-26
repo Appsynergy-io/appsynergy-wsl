@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $(uname -r) == *-appsynergy-wsl ]]
+[[ $(ps -p 1 -o comm=) == systemd ]]
+systemctl is-system-running --wait
+test -s /etc/machine-id
+test -d /sys/fs/cgroup
+test -d "/lib/modules/$(uname -r)"
+modprobe dummy
+test -d /sys/module/dummy
+test -e /dev/vsock
+getent hosts archlinux.org
+git --version
+cc --version
+bash --version
+printf 'AppSynergy WSL health checks passed\n'

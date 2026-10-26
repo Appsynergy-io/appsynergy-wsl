@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Called only for an explicitly installed/activated supported Windows release.
+set -euo pipefail
+[[ $EUID == 0 ]] || { echo 'Root is required.' >&2; exit 2; }
+include='Include = /etc/pacman.conf.d/appsynergy-wsl.conf'
+if ! grep -Fxq "$include" /etc/pacman.conf; then
+    printf '\n%s\n' "$include" >> /etc/pacman.conf
+fi
+pacman-conf --repo appsynergy-wsl SigLevel

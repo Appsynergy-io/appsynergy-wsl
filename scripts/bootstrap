@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""Install hash-pinned validation tools only in the repository cache."""
+import sys
+import subprocess
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.inputs import bootstrap
+
+if __name__ == "__main__":
+    bootstrap()
+    subprocess.run([sys.executable, str(Path(__file__).resolve().with_name('bootstrap-windows'))], check=True)

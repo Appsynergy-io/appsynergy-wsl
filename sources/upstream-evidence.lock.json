@@ -1,0 +1,13 @@
+{
+  "commit": "bf83c8e65c1e801fb6ed4734824dbee4a73031be",
+  "files": {
+    "PKGBUILD": {
+      "url": "https://raw.githubusercontent.com/CachyOS/linux-cachyos/bf83c8e65c1e801fb6ed4734824dbee4a73031be/linux-cachyos-server/PKGBUILD",
+      "sha256": "7829cf294a263648933a6ebe39cad48e451caa20d0848310f92c948ac33a47f1"
+    },
+    "config": {
+      "url": "https://raw.githubusercontent.com/CachyOS/linux-cachyos/bf83c8e65c1e801fb6ed4734824dbee4a73031be/linux-cachyos-server/config",
+      "sha256": "3df33112e3357feb6a899bbfc006f2ded15226d1b2eb741ac986d581b9ca7773"
+    }
+  }
+}

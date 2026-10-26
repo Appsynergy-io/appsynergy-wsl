@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /work/linux
+export KBUILD_BUILD_USER=appsynergy KBUILD_BUILD_HOST=wsl-builder
+export KBUILD_BUILD_VERSION=1
+export KBUILD_BUILD_TIMESTAMP='Sun Oct 25 00:00:00 UTC 2026'
+export KCONFIG_NOTIMESTAMP=1
+unset CFLAGS CXXFLAGS CPPFLAGS KCFLAGS KCPPFLAGS LDFLAGS
+if [[ ! -f /work/prepared ]]; then
+    for adaptation in stable.patch gud-tv-mode-bounds.patch dkms-clang.patch; do
+        if patch -p1 --forward --force --fuzz=0 --dry-run < "/inputs/$adaptation" >/dev/null; then
+            patch -p1 --forward --force --fuzz=0 < "/inputs/$adaptation"
+        else
+            patch -p1 --reverse --force --fuzz=0 --dry-run < "/inputs/$adaptation" >/dev/null
+        fi
+    done
+    cp /inputs/appsynergy.config .config
+    printf '%s\n' '-1' > localversion.10-pkgrel
+    printf '%s\n' '-appsynergy-wsl' > localversion.20-pkgname
+    scripts/kconfig/merge_config.sh -m .config /inputs/wsl.config
+    make LLVM=1 olddefconfig
+    python /inputs/verify-config .config /inputs/wsl.config /inputs/wsl2-contract.json
+    touch /work/prepared
+fi
+python /inputs/verify-config .config /inputs/wsl.config /inputs/wsl2-contract.json
+make LLVM=1 -j"${BUILD_JOBS:-12}" bzImage modules
+scripts/extract-ikconfig arch/x86/boot/bzImage | cmp - .config
+release=$(make -s LLVM=1 kernelrelease)
+[[ $release == "$(cat /inputs/kernel-version)-1-appsynergy-wsl" ]]
+mkdir -p /work/output /work/modules
+make LLVM=1 -j"${BUILD_JOBS:-12}" INSTALL_MOD_PATH=/work/modules INSTALL_MOD_STRIP=1 modules_install
+depmod -b /work/modules "$release"
+rm -f "/work/modules/lib/modules/$release/build" "/work/modules/lib/modules/$release/source"
+# WSL mounts the VHDX at /lib/modules/<release>: its root holds this directory's contents.
+size=$(du -sb "/work/modules/lib/modules/$release" | cut -f1)
+size=$(( (size + 512*1024*1024 + 4095) / 4096 * 4096 ))
+truncate -s "$size" /work/modules.ext4
+mkfs.ext4 -q -F -L appsynergy-modules -d "/work/modules/lib/modules/$release" /work/modules.ext4
+e2fsck -fn /work/modules.ext4
+qemu-img convert -f raw -O vhdx -o subformat=dynamic /work/modules.ext4 /work/output/modules.vhdx
+qemu-img check /work/output/modules.vhdx
+find "/work/modules/lib/modules/$release" -type f -name '*.ko*' -print0 | while IFS= read -r -d '' module; do
+    [[ $(modinfo -F vermagic "$module" | cut -d ' ' -f1) == "$release" ]]
+done
+cp /work/package-inventory.txt /work/output/toolchain-inventory.txt
+cp arch/x86/boot/bzImage /work/output/kernel
+cp .config /work/output/kernel.config
+cp System.map /work/output/System.map
+printf '%s\n' "$release" > /work/output/kernel-release.txt
+sha256sum /work/output/kernel /work/output/modules.vhdx > /work/output/kernel-checksums.txt
+
+python /inputs/verify-config .config /inputs/wsl.config /inputs/wsl2-contract.json > /work/output/wsl2-compatibility.json
+cp certs/signing_key.x509 /work/output/module-signing-cert.x509
+python - <<'PYINFO'
+import hashlib, json, os
+from pathlib import Path
+info = {"schema": 1, "build_user": os.environ["KBUILD_BUILD_USER"], "build_host": os.environ["KBUILD_BUILD_HOST"],
+        "build_version": os.environ["KBUILD_BUILD_VERSION"], "build_timestamp": os.environ["KBUILD_BUILD_TIMESTAMP"],
+        "make": {"LLVM": "1", "jobs": int(os.environ.get("BUILD_JOBS", "12"))},
+        "module_certificate_sha256": hashlib.sha256(Path("/work/output/module-signing-cert.x509").read_bytes()).hexdigest()}
+Path("/work/output/build-parameters.json").write_text(json.dumps(info, indent=2) + "\n")
+PYINFO

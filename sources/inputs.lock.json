@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "appsynergy": {
+    "repository": "https://github.com/Appsynergy-io/appsynergy-linux.git",
+    "commit": "3588259480f0326745b318904ad16d1784eeca12",
+    "files": {
+      "kernel/upstream/PIN": {
+        "sha256": "2113e1630f40498db7f75bb12844f12a632aa4c2a8eb224f8b1536611eb2a187"
+      },
+      "kernel/upstream/config-7.2.3-1-appsynergy-linux": {
+        "sha256": "12c5c0c9d4967240baeb9c328c2455750333c150945b7fa5b560e1b4014bef2d"
+      },
+      "kernel/upstream/cachyos-source-keys.asc": {
+        "sha256": "0340e9778cc46b853f2cb1aa2cd29bf21688ce06924f83442baccbb4c14310bc"
+      },
+      "packages/pkgbuilds/appsynergy-keyring/appsynergy.gpg": {
+        "sha256": "28a10f993fbf37bbbb6da6bdb0a4ea9557bd95db6b4ac4d196ffb2e95511b347"
+      },
+      "packages/pkgbuilds/appsynergy-keyring/appsynergy-trusted": {
+        "sha256": "b90ec7f484ccc8dc6430081fbcd51b817ec04302c72f031580f98cab3779dddc"
+      },
+      "packages/pkgbuilds/appsynergy-keyring/appsynergy-revoked": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "packages/pkgbuilds/appsynergy-mirrorlist/appsynergy.conf": {
+        "sha256": "8777a8c39de70ae0559ea0facc5387ae2f5b3910e6c0b7c41f01db4463592e99"
+      },
+      "packages/pkgbuilds/appsynergy-mirrorlist/appsynergy-mirrorlist": {
+        "sha256": "9f2a3b586d7a3c9bebd5c5698a05202b605960d0bd9180eb69a3f423652ac263"
+      },
+      "packages/scripts/build-appsynergy-linux.sh": {
+        "sha256": "1349adf231da2140f6fa3d244b9e742c359151a5627e2d6bea9cb40118fecdc5"
+      },
+      "LICENSE": {
+        "sha256": "34ac2e1db0fdddd3ff94d39eb16922f92a6dc7fd5e74843ac26e619b3ea73e99"
+      },
+      "packages/pkgbuilds/appsynergy-branding-desktop/icons/hicolor/scalable/apps/appsynergy-linux.svg": {
+        "sha256": "1039dd565712fec3c1ca617a4dffcf688479be754f0a39566126f50e63f5afd9"
+      }
+    }
+  },
+  "cachyos": {
+    "repository": "https://github.com/CachyOS/linux-cachyos.git",
+    "commit": "bf83c8e65c1e801fb6ed4734824dbee4a73031be",
+    "flavor": "linux-cachyos-server",
+    "version": "7.2.3",
+    "pkgrel": 1
+  },
+  "recipes": {
+    "repository": "https://github.com/imabee101/prompt-recipe-book.git",
+    "commit": "4e11740139a2fb586c2114ca53c6356b5663d373"
+  },
+  "kernel": {
+    "url": "https://github.com/CachyOS/linux/releases/download/cachyos-7.2.3-2/cachyos-7.2.3-2.tar.gz",
+    "sha256": "1a4fa55ad689a98fc0a451aefc7be30e6e69691c79e5aa407ced10a3644edd62",
+    "blake2b": "5531efbf7fa5b7b914c6530806b801d080be1471eef9a5b644c5d95d55a41c6c0e00fca7d62435bb139d27a63ac5e20b9399dcd6f6444058ad26053b51bdee34",
+    "signature_sha256": "ba57a609e60d27058edaedfae8cb0bcae871d8861908d47891cbd98ba34cef5a",
+    "signers": [
+      "E18447AC260021D31F3FF6C4C8A2A4774B8B63C4",
+      "E8B9AA39F054E30E8290D492C3C4820857F654FE"
+    ],
+    "patches": [
+      {
+        "url": "https://raw.githubusercontent.com/CachyOS/kernel-patches/372764bb5f8e860ba20f1fd967ed2999f9715e8f/7.2/misc/dkms-clang.patch",
+        "sha256": "6f45ef083841792e88fbadbfefb0630abd738a131f9782333fbc61f8b6712b4b",
+        "blake2b": "c992567bd7dd8553432be496ffa1c17e2f5ebe9c7edb51945cf977e1b742dd6517c210d8843bb82744ca705efd07f8027cd7dde41b50215ebd707a34aa81462e"
+      }
+    ]
+  }
+}

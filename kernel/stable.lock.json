@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "base_version": "7.2.3",
+  "version": "7.2.13",
+  "repository": "https://github.com/gregkh/linux.git",
+  "signer": "647F28654894E3BD457199BE38DBBDC86092693E",
+  "tags": {
+    "v7.2.3": {
+      "object": "296e02a60bcb8223c12ebf58feeb69961f4608c1",
+      "commit": "58e7295cfecaddec94629160386412e0f2b1e8fe",
+      "sha256": "3607144e5edc346b515e8cbf14482b552753c93aaa37fe0fe2109a33788355c1"
+    },
+    "v7.2.13": {
+      "object": "296212c45bc6d5df741180926c80a1c262fa5c7f",
+      "commit": "3c172eede0d6b889ead876f45cc843070209208f",
+      "sha256": "d420d91b1de33ddd425202394c7da27b2e0b56e05767861e8fa3e6d80685ecd1"
+    }
+  },
+  "upstream_delta": {
+    "url": "https://github.com/gregkh/linux/compare/58e7295cfecaddec94629160386412e0f2b1e8fe..3c172eede0d6b889ead876f45cc843070209208f.diff",
+    "sha256": "c722c235384add7c549dbdeec8f8adcb434c4b0c47b6da79092c75e59fd673fd"
+  },
+  "adapted_delta": {
+    "path": "kernel/patches/stable-7.2.3-13.patch",
+    "sha256": "b6f365730590da043527ffbffcf9de75a7d9ad5685845cdefebc04d2b0e7e244",
+    "base_subset_tree": "664883fac24195343503674bdeffffb008368474",
+    "merged_subset_tree": "e4083468e0d752e44748555fe4d0df3eb56b142d",
+    "format": "Unified diff; redundant Git blob-index headers omitted. File contents and mode changes are preserved."
+  },
+  "reconciliations": {
+    "arch/x86/Kconfig.cpu": {
+      "conflicts": 1,
+      "resolution": "Retain Cachy CPU choice after upstream Rust APX gating"
+    },
+    "arch/x86/kernel/cpu/amd.c": {
+      "conflicts": 1,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    },
+    "drivers/ata/ahci.c": {
+      "conflicts": 1,
+      "resolution": "Retain Cachy int return for NVMe remap, add upstream Marvell handler"
+    },
+    "drivers/cpufreq/amd-pstate.c": {
+      "conflicts": 2,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    },
+    "drivers/gpu/drm/amd/amdgpu/vi.c": {
+      "conflicts": 1,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    },
+    "drivers/net/wireless/realtek/rtw89/fw.c": {
+      "conflicts": 2,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    },
+    "include/linux/list.h": {
+      "conflicts": 2,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    },
+    "kernel/sched/core.c": {
+      "conflicts": 1,
+      "resolution": "Take stable fix in conflict region; preserve surrounding Cachy changes"
+    }
+  },
+  "public_key": {
+    "path": "kernel/upstream/gregkh-release-key.asc",
+    "sha256": "65142ac9e4c26d84b87b02f88b990c0d3013d4a1e0d7f656ad552a25c1c7167d"
+  }
+}

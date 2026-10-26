@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Check a candidate archive and exercise real interrupted setup in a container.
+
+This is a Linux runtime test. It cannot establish WSL/Windows acceptance.
+"""
+import argparse
+import configparser
+import io
+import os
+import secrets
+import select
+import subprocess
+import sys
+import tarfile
+import time
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.evidence import digest, load_json, require
+from wslbuild.inputs import ROOT
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("archive", type=Path)
+    args = parser.parse_args()
+    archive = args.archive.resolve()
+    image = load_json(ROOT / "sources/package-builder.lock.json")["image"]
+    reader = "appsynergy-archive-" + uuid.uuid4().hex
+    decompress = subprocess.Popen(["docker", "run", "--name", reader, "--rm", "--network=none", "--user=65534:65534",
+                                   "--mount", f"type=bind,src={archive},dst=/rootfs.tar.zst,readonly",
+                                   image, "zstd", "-dc", "/rootfs.tar.zst"], stdout=subprocess.PIPE)
+    seen = set()
+    total_size = 0
+    try:
+        with tarfile.open(fileobj=decompress.stdout, mode="r|") as stream:
+            for member in stream:
+                name = member.name.removeprefix("./")
+                require(name not in seen, "duplicate rootfs entry")
+                seen.add(name)
+                require(name != 'etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service',
+                        'rootfs enables an unconfigured competing network-online service')
+                total_size += member.size
+                require(len(seen) < 500000 and total_size < 16 * 1024**3, "rootfs extraction limit")
+                if name in {"etc/passwd", "etc/shadow"}:
+                    require(member.size < 1024**2, "account metadata limit")
+                require(not name.startswith("/") and ".." not in Path(name).parts, "rootfs traversal")
+                require(not member.isdev(), "rootfs contains device node")
+                require(not name.startswith(("root/.ssh", "root/.gnupg", "root/.cache", "etc/pacman.d/gnupg")),
+                        "rootfs contains builder-private state")
+                require(not (name.startswith("etc/ssh/ssh_host_") or name.endswith(".bash_history")), "host keys/history")
+                if name == "etc/machine-id":
+                    require(member.size == 0, "machine identity must be created per instance")
+                if name == "etc/passwd":
+                    text = stream.extractfile(member).read().decode()
+                    require(not any(1000 <= int(line.split(":")[2]) < 65534 for line in text.splitlines()), "builder user in rootfs")
+                if name == "etc/shadow":
+                    text = stream.extractfile(member).read().decode()
+                    require(all(line.split(":")[1] in {"!", "!!", "*", "!*", ""} for line in text.splitlines()), "builder password in rootfs")
+                if name.startswith("var/log/") and member.isfile():
+                    require(member.size == 0, "builder log in rootfs")
+        require(decompress.wait(timeout=30) == 0, "archive decompression failed")
+    finally:
+        if decompress.poll() is None:
+            decompress.kill()
+            decompress.wait()
+        subprocess.run(["docker", "rm", "-f", reader], capture_output=True, timeout=30)
+    for name in ("etc/machine-id", "usr/bin/appsynergy-first-run", "etc/wsl.conf", "usr/bin/git"):
+        require(name in seen, f"rootfs missing {name}")
+    identity = uuid.uuid4().hex
+    test_image = "appsynergy-wsl-runtime-test:" + identity
+    container = "appsynergy-runtime-" + identity
+    reader = "appsynergy-import-" + identity
+    decompress = subprocess.Popen(["docker", "run", "--name", reader, "--rm", "--network=none", "--user=65534:65534",
+                                   "--mount", f"type=bind,src={archive},dst=/rootfs.tar.zst,readonly",
+                                   image, "zstd", "-dc", "/rootfs.tar.zst"], stdout=subprocess.PIPE)
+    try:
+        subprocess.run(["docker", "import", "-", test_image], stdin=decompress.stdout, check=True, capture_output=True, timeout=300)
+        decompress.stdout.close()
+        require(decompress.wait(timeout=30) == 0, "image import decompression failed")
+        subprocess.run(["docker", "run", "-d", "--name", container, "--network=none", "--pids-limit=512", "--memory=2g",
+                        test_image, "sleep", "infinity"], check=True, capture_output=True, timeout=30)
+        command = ["docker", "exec", "-i", "-e", "LC_ALL=C", container, "appsynergy-first-run", "acceptance"]
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+        output = b""
+        deadline = time.monotonic() + 90
+        while b"New password:" not in output and time.monotonic() < deadline:
+            if select.select([process.stdout], [], [], 1)[0]:
+                chunk = os.read(process.stdout.fileno(), 4096)
+                if not chunk:
+                    break
+                output += chunk
+                require(len(output) <= 128 * 1024, "first-run output limit")
+        require(b"New password:" in output, "real passwd prompt was not reached")
+        subprocess.run(["docker", "exec", container, "pkill", "-KILL", "-x", "passwd"], check=True, capture_output=True, timeout=15)
+        require(process.wait(timeout=30) != 0, "interrupted setup unexpectedly succeeded")
+        process.stdin.close()
+        subprocess.run(["docker", "exec", container, "bash", "-euc",
+                        "test -f /var/lib/appsynergy-wsl/user; test ! -f /var/lib/appsynergy-wsl/complete; id acceptance"],
+                       check=True, capture_output=True, timeout=15)
+        # Reproduce interruption after keyring creation but before its completion
+        # marker: retry must repopulate trust instead of trusting a partial setup.
+        subprocess.run(["docker", "exec", container, "rm", "/var/lib/appsynergy-wsl/keyring.ready"], check=True, capture_output=True, timeout=15)
+        password = secrets.token_urlsafe(32).encode()
+        result = subprocess.run(command, input=password + b"\n" + password + b"\n", capture_output=True, timeout=90)
+        require(result.returncode == 0, "same-user first-run retry failed")
+        subprocess.run(["docker", "exec", container, "test", "-f", "/var/lib/appsynergy-wsl/keyring.ready"], check=True, capture_output=True, timeout=15)
+        config = subprocess.check_output(["docker", "exec", container, "cat", "/etc/wsl.conf"], timeout=15).decode()
+        parsed = configparser.ConfigParser()
+        parsed.read_file(io.StringIO(config))
+        require(parsed["user"]["default"] == "acceptance" and parsed["boot"]["systemd"] == "true", "first-run WSL config")
+        no_password = subprocess.run(["docker", "exec", "--user=acceptance", container, "sudo", "-kn", "true"], capture_output=True, timeout=15)
+        require(no_password.returncode != 0, "sudo was not password authenticated")
+        sudo = subprocess.run(["docker", "exec", "-i", "--user=acceptance", container, "sudo", "-Sk", "true"],
+                              input=password + b"\n", capture_output=True, timeout=15)
+        require(sudo.returncode == 0, "password-authenticated sudo failed")
+        subprocess.run(command, stdin=subprocess.DEVNULL, check=True, capture_output=True, timeout=15)
+        wrong_user = subprocess.run(["docker", "exec", container, "appsynergy-first-run", "otheruser"], capture_output=True, timeout=15)
+        require(wrong_user.returncode != 0, "interrupted journal adopted a different user")
+        print(f"PASS clean archive and real first-run interruption/retry/default user/password-sudo/idempotence: {digest(archive)}")
+        print("NOT RUN: WSL systemd lifecycle, Windows interoperability, boot and reboot acceptance")
+    finally:
+        if decompress.poll() is None:
+            decompress.kill()
+            decompress.wait()
+        subprocess.run(["docker", "rm", "-f", reader], capture_output=True, timeout=30)
+        subprocess.run(["docker", "rm", "-f", container], capture_output=True, timeout=30)
+        subprocess.run(["docker", "image", "rm", test_image], capture_output=True, timeout=30)
+
+
+if __name__ == "__main__":
+    main()

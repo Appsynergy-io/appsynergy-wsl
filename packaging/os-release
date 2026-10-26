@@ -1,0 +1,9 @@
+NAME="AppSynergy WSL"
+PRETTY_NAME="AppSynergy WSL (development)"
+ID=appsynergy-wsl
+ID_LIKE=arch
+BUILD_ID=rolling
+HOME_URL="https://github.com/Appsynergy-io/appsynergy-wsl"
+SUPPORT_URL="https://github.com/Appsynergy-io/appsynergy-wsl/issues"
+VARIANT="WSL2"
+VARIANT_ID=wsl

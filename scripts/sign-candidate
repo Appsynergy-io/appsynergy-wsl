@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""Authenticate an already-built trusted-main manifest. No candidate execution."""
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.evidence import load_json, require, validate_manifest
+from wslbuild.inputs import ROOT
+from wslbuild.build import input_hash
+from wslbuild.candidate import candidate_version
+
+parser = argparse.ArgumentParser()
+parser.add_argument("directory", type=Path)
+parser.add_argument("--private-key", type=Path, required=True)
+args = parser.parse_args()
+manifest = load_json(args.directory / "manifest.json")
+require(os.environ.get("GITHUB_EVENT_NAME") == "push" and os.environ.get("GITHUB_REF") == "refs/heads/main"
+        and os.environ.get("GITHUB_REPOSITORY") == "Appsynergy-io/appsynergy-wsl", "candidate signing requires trusted main")
+trusted = {"source": os.environ["GITHUB_SHA"], "inputs_sha256": input_hash(), "version": candidate_version(os.environ["GITHUB_SHA"]),
+           "build": {"repository": "Appsynergy-io/appsynergy-wsl", "event": "push", "ref": "refs/heads/main",
+                     "run_id": int(os.environ["GITHUB_RUN_ID"]), "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"])}}
+validate_manifest(manifest, args.directory, trusted)
+subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(args.private_key), "-out",
+                str(args.directory / "manifest.sig"), str(args.directory / "manifest.json")], check=True, timeout=30)
+subprocess.run(["openssl", "dgst", "-sha256", "-verify", str(ROOT / "windows/trust/release.pem"), "-signature",
+                str(args.directory / "manifest.sig"), str(args.directory / "manifest.json")], check=True, timeout=30)

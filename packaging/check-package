@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+work=$(mktemp -d /tmp/package.XXXXXX)
+cp -r /inputs/packaging "$work/packaging"
+cp /inputs/LICENSE "$work/LICENSE"
+cp -r /inputs/sources "$work/sources"
+export HOME="$work/home"
+mkdir "$HOME"
+cd "$work/packaging"
+makepkg --nodeps --cleanbuild --nosign --noconfirm
+shopt -s nullglob
+archives=(*.pkg.tar.zst)
+[[ ${#archives[@]} == 1 ]]
+bsdtar -tf "${archives[0]}" > "$work/list"
+bsdtar --numeric-owner -tvf "${archives[0]}" > "$work/metadata"
+awk '$3 != 0 || $4 != 0 || substr($1,6,1) == "w" || substr($1,9,1) == "w" { bad=1 }
+     END { exit bad }' "$work/metadata"
+for path in etc/wsl.conf usr/bin/appsynergy-first-run usr/bin/appsynergy-health-check; do
+    grep -Fx "$path" "$work/list"
+done
+if grep -Eq '^(home/|root/|etc/shadow|etc/machine-id)' "$work/list"; then
+    echo 'Private instance state must not be packaged' >&2
+    exit 1
+fi
+bsdtar -xOf "${archives[0]}" .PKGINFO
+sha256sum "${archives[0]}"
+mkdir -p /tmp/appsynergy-package
+cp "${archives[0]}" /tmp/appsynergy-package/
+if [[ -d /output ]]; then
+    cp "${archives[0]}" /output/
+fi

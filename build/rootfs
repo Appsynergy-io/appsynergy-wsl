@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+bash /inputs/install-packages
+install -Dm644 /inputs/package-signing.asc /tmp/wsl-signing.asc
+pacman-key --add /tmp/wsl-signing.asc
+pacman-key --lsign-key "$(cat /inputs/package-signing-fingerprint)"
+pacman -U --noconfirm /inputs/integration/*.pkg.tar.zst
+install -Dm644 /inputs/appsynergy.gpg /usr/share/pacman/keyrings/appsynergy.gpg
+install -Dm644 /inputs/appsynergy-trusted /usr/share/pacman/keyrings/appsynergy-trusted
+install -Dm644 /inputs/appsynergy-revoked /usr/share/pacman/keyrings/appsynergy-revoked
+pacman-key --populate appsynergy wsl-integration
+install -Dm644 /inputs/appsynergy-mirrorlist /etc/pacman.d/appsynergy-mirrorlist
+install -Dm644 /inputs/appsynergy.conf /etc/pacman.conf.d/appsynergy.conf
+printf '\nInclude = /etc/pacman.conf.d/appsynergy.conf\n' >> /etc/pacman.conf
+printf '%s\n' "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+printf '%s\n' '[appsynergy-wsl]' 'SigLevel = Required DatabaseRequired' \
+    'Server = https://github.com/Appsynergy-io/appsynergy-wsl/releases/download/repo-wsl-x86_64' > /etc/pacman.conf.d/appsynergy-wsl.conf
+# The separate channel becomes available on first accepted publication. Explicitly
+# enable its include after that publication; no pre-acceptance pointer is trusted.
+printf '%s\n' '# Include = /etc/pacman.conf.d/appsynergy-wsl.conf' >> /etc/pacman.conf
+printf '%s\n' 'en_US.UTF-8 UTF-8' > /etc/locale.gen
+locale-gen
+printf '%s\n' 'LANG=en_US.UTF-8' > /etc/locale.conf
+passwd -l root
+# WSL init owns interface addressing and generates resolv.conf. Enabling an
+# unconfigured network manager adds a wait-online failure to an otherwise valid boot.
+systemctl disable systemd-networkd.service systemd-networkd-wait-online.service systemd-resolved.service
+pacman -Q > /work/rootfs-inventory.txt
+test -x /usr/bin/appsynergy-first-run
+test -x /usr/bin/git
+test -x /usr/bin/sudo
+visudo -c
+# Never export builder-specific identities, keys, history, logs or mounts.
+rm -rf /etc/pacman.d/gnupg /root/.gnupg /root/.cache /root/.ssh
+rm -f /root/.bash_history /etc/ssh/ssh_host_* /var/lib/systemd/random-seed
+rm -f /etc/machine-id /var/lib/dbus/machine-id
+touch /etc/machine-id
+ln -s /etc/machine-id /var/lib/dbus/machine-id
+find /var/log -type f -exec truncate -s 0 {} +
+rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* /tmp/*
+tar --zstd --numeric-owner --sort=name --mtime='2026-10-25 00:00:00Z' \
+    --exclude='./dev/*' --exclude='./proc/*' --exclude='./sys/*' --exclude='./run/*' \
+    --exclude='./tmp/*' --exclude='./inputs' --exclude='./packages' --exclude='./work' \
+    --exclude='./.dockerenv' --exclude='./etc/hosts' --exclude='./etc/hostname' --exclude='./etc/resolv.conf' \
+    -cpf /work/rootfs.tar.zst -C / .

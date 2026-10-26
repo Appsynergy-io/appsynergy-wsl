@@ -1,0 +1,25 @@
+# Integration is signed separately from the shared AppSynergy Linux repository.
+pkgname=appsynergy-wsl-integration
+pkgver=${WSL_PACKAGE_VERSION:-0.1.0}
+pkgrel=1
+pkgdesc='AppSynergy WSL2 runtime and resumable first-run setup'
+arch=('any')
+url='https://github.com/Appsynergy-io/appsynergy-wsl'
+license=('MIT')
+depends=('bash' 'coreutils' 'util-linux' 'shadow' 'sudo' 'python' 'systemd' 'git' 'gcc' 'glibc' 'pacman' 'gnupg' 'kmod' 'procps-ng' 'grep')
+backup=('etc/wsl.conf')
+install=integration.install
+
+package() {
+    install -Dm644 "$startdir/wsl.conf" "$pkgdir/etc/wsl.conf"
+    install -Dm755 "$startdir/first-run" "$pkgdir/usr/bin/appsynergy-first-run"
+    install -Dm755 "$startdir/health-check" "$pkgdir/usr/bin/appsynergy-health-check"
+    install -Dm755 "$startdir/enable-channel" "$pkgdir/usr/bin/appsynergy-enable-channel"
+    install -Dm644 "$startdir/os-release" "$pkgdir/usr/lib/appsynergy-wsl/os-release"
+    install -Dm644 "$startdir/identity.hook" "$pkgdir/usr/share/libalpm/hooks/95-appsynergy-wsl-identity.hook"
+    install -dm755 "$pkgdir/usr/share/pacman/keyrings"
+    gpg --batch --dearmor < "$startdir/../sources/wsl-integration-signing.asc" > "$pkgdir/usr/share/pacman/keyrings/wsl-integration.gpg"
+    printf '%s\n' 'EC4F94EC5CB07ADF3B4F351300F87157F10D3E92:4:' > "$pkgdir/usr/share/pacman/keyrings/wsl-integration-trusted"
+    touch "$pkgdir/usr/share/pacman/keyrings/wsl-integration-revoked"
+    install -Dm644 "$startdir/../LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

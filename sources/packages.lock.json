@@ -1,0 +1,635 @@
+{
+  "schema": 1,
+  "base_packages": [
+    "acl 2.4.0-1",
+    "archlinux-keyring 20260909-1",
+    "attr 2.6.0-1",
+    "audit 4.2.1-1",
+    "autoconf 2.73-1",
+    "automake 1.19-1",
+    "base 3-3",
+    "base-devel 1-2",
+    "bash 5.3.20-1",
+    "binutils 2.47-4",
+    "bison 3.8.2-8",
+    "boost-libs 1.92.0-1",
+    "brotli 1.2.0-1",
+    "bzip2 1.0.8-6",
+    "ca-certificates 20240618-1",
+    "ca-certificates-mozilla 3.131-1",
+    "ca-certificates-utils 20240618-1",
+    "coreutils 9.12-2",
+    "cpio 2.15-3",
+    "cryptsetup 2.8.8-1",
+    "curl 8.23.0-1",
+    "db5.3 5.3.28-7",
+    "dbus 1.16.2-1",
+    "dbus-broker 37-3",
+    "dbus-broker-units 37-3",
+    "dbus-units 37-3",
+    "debugedit 5.3-2",
+    "device-mapper 2.03.43-2",
+    "diffutils 3.12-2",
+    "e2fsprogs 1.47.4-1",
+    "elfutils 0.196-1",
+    "expat 2.9.0-1",
+    "fakeroot 1:1.37.2-3",
+    "file 5.48-1",
+    "filesystem 2025.10.12-1",
+    "findutils 4.11.0-1",
+    "flex 2.6.4-6",
+    "gawk 5.4.1-1",
+    "gc 8.2.12-1",
+    "gcc 16.2.1+r23+gd564253eb6c8-1",
+    "gcc-libs 16.2.1+r23+gd564253eb6c8-1",
+    "gdb 18.1-1",
+    "gdb-common 18.1-1",
+    "gdbm 1.26-2",
+    "gettext 1.0-2",
+    "glib2 2.90.1-1",
+    "glibc 2.44+r50+g1848099f063e-1",
+    "gmp 6.3.0-3",
+    "gnulib-l10n 20241231-1",
+    "gnupg 2.4.9-3",
+    "gnutls 3.8.13-3",
+    "gpgme 2.2.0-1",
+    "grep 3.12-2",
+    "groff 1.24.2-1",
+    "guile 3.0.11-1",
+    "gzip 1.15-1",
+    "hwdata 0.412-1",
+    "iana-etc 20260617-1",
+    "icu 78.3-1",
+    "iproute2 7.2.0-1",
+    "iptables 1:1.8.13-1",
+    "iputils 20250605-1",
+    "jansson 2.15.1-1",
+    "json-c 0.19-1",
+    "kbd 2.10.0-1",
+    "keyutils 1.6.3-4",
+    "kmod 34.2-1",
+    "krb5 1.22.2-1",
+    "leancrypto 1.9.1-1",
+    "libarchive 3.8.10-1",
+    "libasan 16.2.1+r23+gd564253eb6c8-1",
+    "libassuan 3.0.0-1",
+    "libatomic 16.2.1+r23+gd564253eb6c8-1",
+    "libbpf 1.7.0-1",
+    "libcap 2.78-1",
+    "libcap-ng 0.9.6-1",
+    "libelf 0.196-1",
+    "libevent 2.1.13-2",
+    "libffi 3.8.0-1",
+    "libgcc 16.2.1+r23+gd564253eb6c8-1",
+    "libgcrypt 1.12.4-1",
+    "libgfortran 16.2.1+r23+gd564253eb6c8-1",
+    "libgomp 16.2.1+r23+gd564253eb6c8-1",
+    "libgpg-error 1.61-1",
+    "libhwasan 16.2.1+r23+gd564253eb6c8-1",
+    "libidn2 2.3.8-1",
+    "libisl 0.28-1",
+    "libksba 1.8.1-1",
+    "libldap 2.7.1-1",
+    "liblsan 16.2.1+r23+gd564253eb6c8-1",
+    "libmakepkg-dropins 20-2",
+    "libmnl 1.0.5-2",
+    "libmpc 1.4.1-1",
+    "libnetfilter_conntrack 1.1.1-1",
+    "libnfnetlink 1.0.2-2",
+    "libnftnl 1.3.2-1",
+    "libnghttp2 1.70.0-1",
+    "libnghttp3 1.18.0-1",
+    "libngtcp2 1.25.0-1",
+    "libnl 3.12.0-1",
+    "libnsl 2.0.1-2",
+    "libobjc 16.2.1+r23+gd564253eb6c8-1",
+    "libp11-kit 0.26.5-1",
+    "libpcap 1.11.0-1",
+    "libpsl 0.21.5-2",
+    "libquadmath 16.2.1+r23+gd564253eb6c8-1",
+    "libsasl 2.1.28-5",
+    "libseccomp 2.6.0-1",
+    "libsecret 0.21.8.2-1",
+    "libssh2 1.11.1-7",
+    "libstdc++ 16.2.1+r23+gd564253eb6c8-1",
+    "libsysprof-capture 51.0-1",
+    "libtasn1 4.21.0-1",
+    "libtirpc 1.3.8-1",
+    "libtool 2.6.2-5",
+    "libtsan 16.2.1+r23+gd564253eb6c8-1",
+    "libubsan 16.2.1+r23+gd564253eb6c8-1",
+    "libunistring 1.4.2-1",
+    "libusb 1.0.30-1",
+    "libverto 0.3.2-6",
+    "libxcrypt 4.5.2-1",
+    "libxml2 2.15.4-1",
+    "licenses 20240728-1",
+    "linux-api-headers 7.2-1",
+    "lmdb 0.9.35-1",
+    "lz4 1:1.10.0-2",
+    "m4 1.4.21-2",
+    "make 4.4.1-3",
+    "mpdecimal 4.0.1-3",
+    "mpfr 4.2.2-1",
+    "ncurses 6.6-2",
+    "nettle 4.0-1",
+    "nftables 1:1.1.7-3",
+    "npth 1.8-1",
+    "openssl 3.6.5-1",
+    "p11-kit 0.26.5-1",
+    "pacman 7.1.0.r9.g54d9411-3",
+    "pacman-mirrorlist 20260610-1",
+    "pam 1.7.3-1",
+    "pambase 20260616-1",
+    "patch 2.8-1",
+    "pciutils 3.15.0-1",
+    "pcre2 10.49-1",
+    "perl 5.42.3-1",
+    "pinentry 1.3.3-1",
+    "pkgconf 3.0.7-1",
+    "popt 1.19-2",
+    "procps-ng 4.0.7-1",
+    "psmisc 23.7-2",
+    "python 3.14.8-1",
+    "readline 8.3.6-1",
+    "sed 4.10-2",
+    "shadow 4.20.0.arch1-1",
+    "source-highlight 3.1.9-19",
+    "sqlite 3.54.0-1",
+    "sudo 1.9.17.p2-6",
+    "systemd 262-1",
+    "systemd-libs 262-1",
+    "systemd-sysvcompat 262-1",
+    "tar 1.35-5",
+    "texinfo 7.3-1",
+    "tpm2-tss 4.2.0-2",
+    "tzdata 2026e-1",
+    "util-linux 2.42.4-1",
+    "util-linux-libs 2.42.4-1",
+    "which 2.25-1",
+    "xxhash 0.8.4-1",
+    "xz 5.8.4-1",
+    "zlib 1:1.3.2-4",
+    "zstd 1.5.7-3"
+  ],
+  "sets": {
+    "toolchain": {
+      "targets": [
+        "clang",
+        "llvm",
+        "lld",
+        "bc",
+        "pahole",
+        "git",
+        "qemu-img"
+      ],
+      "packages": [
+        {
+          "name": "linux-api-headers",
+          "version": "7.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/linux-api-headers-7.3-1-x86_64.pkg.tar.zst",
+          "sha256": "a5a6f5fc8922ef454c54e65e321906183e6606acaadaf416896dcbc44f2194ed",
+          "signature_sha256": "4b9722becfb636ad2ca2e0f69181dfb314fd53ed63c1435a8160f81f8ae9906c"
+        },
+        {
+          "name": "libedit",
+          "version": "20260512_3.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libedit-20260512_3.1-1-x86_64.pkg.tar.zst",
+          "sha256": "70cb736e4fdee330cd0dfab45875f6ea378ae819958dd15748c300b8d7285b42",
+          "signature_sha256": "6f61da87117c55f2eef074dc61bb9aa33539e0b80edb2e0e7be9af98e2609f61"
+        },
+        {
+          "name": "llvm-libs",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/llvm-libs-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "033a4c9b70686f2dca142087961add7db81ae816d85eb060bee91d05461ec5bd",
+          "signature_sha256": "0dfe6c2f645d302cf53b3a0096889aada68198b6749d10e3722ce4e76eb0b8be"
+        },
+        {
+          "name": "clang-libs",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/clang-libs-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "1e93ad8dddbb4e89fd6a3ae6cb57266be3969d7b7d3d5a39d65c0e99337a98ee",
+          "signature_sha256": "9c01846bb1fe2c1a55261435a7bffde94f67a69de93409c8c02d5fe8044921d0"
+        },
+        {
+          "name": "brotli",
+          "version": "1.2.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/brotli-1.2.1-1-x86_64.pkg.tar.zst",
+          "sha256": "dff80818057da76e93c90045f7d9eef0469c35caa03b153cae02ba47bd3c4db2",
+          "signature_sha256": "a6dfa31b78f089e965de666687cddb34f26618e389bca0930dab1383cacdbaad"
+        },
+        {
+          "name": "libldap",
+          "version": "2.7.2-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libldap-2.7.2-2-x86_64.pkg.tar.zst",
+          "sha256": "a11255b067d9b6b85f5d8d4ca8a145eefcc496e4f9ac04e4d6c378042815266b",
+          "signature_sha256": "d73415e867f795df4064f39e7f534979f473fd46da91fca0eebba42ef57b93a7"
+        },
+        {
+          "name": "llvm-lit",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/llvm-lit-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "febbe300fba64ca314da4b012a3bfe5ff86ca568f716a68a2566bed765b03496",
+          "signature_sha256": "d98274edb49def867745bc77fbbef9b35b53b10d66892058727e280bc53c9cde"
+        },
+        {
+          "name": "perl",
+          "version": "5.44.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/perl-5.44.0-1-x86_64.pkg.tar.zst",
+          "sha256": "f7170b9ac09dfc4d46decd5e953888a379215af0207e361bbd426efa53968c70",
+          "signature_sha256": "ab13249544e71e8f128494e2c24a0389b8ff4230319c37238ac71d08870ed740"
+        },
+        {
+          "name": "systemd-libs",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-libs-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "fbf6d77053bb210c8fd3f473f86159870ece009506828e3d4a7b8c425a50995e",
+          "signature_sha256": "5e681764bc8aa1a3688844152cd552975e4829dfecc8810450fe34785fdae6da"
+        },
+        {
+          "name": "ca-certificates-mozilla",
+          "version": "3.132-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/ca-certificates-mozilla-3.132-1-x86_64.pkg.tar.zst",
+          "sha256": "d2305ed8c1426e018ad611cb6e7fa387c3cac0f2e7040401dae2f1f78e0867ab",
+          "signature_sha256": "78f8739c0dda56e32318c1c3c743c1f8c94663f3cb4a5588e143cb936d9e5a4c"
+        },
+        {
+          "name": "llvm",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/llvm-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "b5f894952b907a50dfc5000fb41f220ede3119703fce3e02f12214a20be31f7b",
+          "signature_sha256": "7e0b9f4d6d64c3f207009b2c19e6300f55e1e06b2fd015af1e953776c5bc1668"
+        },
+        {
+          "name": "compiler-rt",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/compiler-rt-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "0a3f0f21a20b44fe4ab576c0ddf0038c433b780a9ab988a762fe384a6f2c017d",
+          "signature_sha256": "af2d56a90e20914d9a62247252b185e2474137a78ab954715c508977129ea6eb"
+        },
+        {
+          "name": "libelf",
+          "version": "0.197-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libelf-0.197-1-x86_64.pkg.tar.zst",
+          "sha256": "f8341a1e281ffd294d81891c95dfcd7cbcf9b5527b160d4b54848ec79a19abc1",
+          "signature_sha256": "8c1cd68bb070304887d80268bc220a449d4cd189ac92c0d0d382c39480dbed22"
+        },
+        {
+          "name": "clang",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/clang-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "382e6b98109a2f4f4a5a8e35a86ea90375bb8ecca3f44b9a83091e4fe61afed0",
+          "signature_sha256": "58f9942948d6edd86fc1ac3dbc992afc33a479156ccef2369832ed627cdd4045"
+        },
+        {
+          "name": "lld",
+          "version": "23.1.4-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/lld-23.1.4-1-x86_64.pkg.tar.zst",
+          "sha256": "ee0d30ba61239e72c07176f936e16d77f65857d22d2b9d9a7c03c58e9d8a5a40",
+          "signature_sha256": "d9b2fbbc55be778180a4f9f4a61cf14e9c715a5aace09226a20cddc1eb70f810"
+        },
+        {
+          "name": "bc",
+          "version": "1.08.2-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/bc-1.08.2-1-x86_64.pkg.tar.zst",
+          "sha256": "b9e5f0d61a674c9be1a0608f3fcab766d989d9a002c37e55a74ccfc8e87027ab",
+          "signature_sha256": "6c2271ba6dcf69c016d9b83fbc19944590c287ee34c5bc6c4accd0a39afbc2e7"
+        },
+        {
+          "name": "pahole",
+          "version": "1:1.32-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/pahole-1:1.32-1-x86_64.pkg.tar.zst",
+          "sha256": "3107fa7ceb378a05bd964a66a44b3350bb2cc8c9735fd01453c83c987794520a",
+          "signature_sha256": "4207d24e31cf1b2582097fbaaf11af6cac7642582c4cc52fda9527825023d0c8"
+        },
+        {
+          "name": "perl-error",
+          "version": "0.17030-3",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-error-0.17030-3-any.pkg.tar.zst",
+          "sha256": "2a6df48b14b3ea0cd6154b46825b4d056b9525a9a3e9afe761decda1d115d196",
+          "signature_sha256": "09e982cc6edfe66099bb6b8e6e03864de5e86591aa4fa6eb7cdcf18cceea4d8b"
+        },
+        {
+          "name": "perl-timedate",
+          "version": "2.35-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-timedate-2.35-1-any.pkg.tar.zst",
+          "sha256": "225b05f5d301b7e168299240b9369cece8d0bddee8627117ce23a57880679715",
+          "signature_sha256": "cd483a6b3b5f8e7af69dec3df347cff644ea2e5323d4384bec2e04d5e36953be"
+        },
+        {
+          "name": "perl-mailtools",
+          "version": "2.22-3",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-mailtools-2.22-3-any.pkg.tar.zst",
+          "sha256": "d93f6c122fa2301c2bd02095b8aaf9c225b5f26f64bb25d2199bfa9a1d3f47ba",
+          "signature_sha256": "3bf340c8444991d8d8a16193da0f45f40245491adafeb82f8a82f1e2fb667ef8"
+        },
+        {
+          "name": "zlib-ng",
+          "version": "2.3.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/zlib-ng-2.3.3-1-x86_64.pkg.tar.zst",
+          "sha256": "52971dcf5ca5e763a070518da9d615be52ea8f645fd44ee323211b6251d1cc67",
+          "signature_sha256": "64e21f43c06cb7827f04e09a12fc99bfb3092c38433fd2cf3f0026f97560b306"
+        },
+        {
+          "name": "git",
+          "version": "2.56.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/git-2.56.0-1-x86_64.pkg.tar.zst",
+          "sha256": "2da35402982c74083251b56bb04ee53bc14377dcc58cbb7e8682f1980beaee83",
+          "signature_sha256": "4f45db3897ea1a71c2fb142c7045b821e65b77ca435ac3940880d69999479d57"
+        },
+        {
+          "name": "fuse-common",
+          "version": "3.18.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/fuse-common-3.18.3-1-x86_64.pkg.tar.zst",
+          "sha256": "6948976906ea830ab210401402ab849e8b5211dd34952e82a92e28a9db3a7389",
+          "signature_sha256": "6202ae950d264333c1e8d34de77d199568ee9ba51935e4690c4f19035540eb74"
+        },
+        {
+          "name": "liburing",
+          "version": "2.15-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/liburing-2.15-1-x86_64.pkg.tar.zst",
+          "sha256": "ceaf9e41bcd5cb06efcffbc90a39628b7a5cae5490c5e6db810a792450070ad2",
+          "signature_sha256": "3847e970c8f76de1aaeb30552440b4f00fad088fcf3dea3ec49494272bd45e5d"
+        },
+        {
+          "name": "numactl",
+          "version": "2.0.19-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/numactl-2.0.19-1-x86_64.pkg.tar.zst",
+          "sha256": "699bce74daee11fa49de93999ba4e023f132bc51a7768dec845b2979d54f367d",
+          "signature_sha256": "cd17ec9ec82f945be850c8bb818cc20d93942a9fe4265dbc08db8b5e1b1b499b"
+        },
+        {
+          "name": "fuse3",
+          "version": "3.18.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/fuse3-3.18.3-1-x86_64.pkg.tar.zst",
+          "sha256": "7171289bad5b88b01b2a2737ecc2a4b0a334a2fc045b6d74c9af57aa863c9547",
+          "signature_sha256": "87c2dda46f7d10de3fe776ea034e8899995a728a40e9cc9146ad5ebbb0d38a7f"
+        },
+        {
+          "name": "libaio",
+          "version": "0.3.113-5",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libaio-0.3.113-5-x86_64.pkg.tar.zst",
+          "sha256": "e746fdedefa9987ad06e918af78976917aba780be8ac51d22dcb9ded324a84ab",
+          "signature_sha256": "a54945f3bf1d4d6b9012a9182a72349a3fc0e21ae3c8a2dd564c7f391d9b2cf2"
+        },
+        {
+          "name": "qemu-img",
+          "version": "11.1.2-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/qemu-img-11.1.2-1-x86_64.pkg.tar.zst",
+          "sha256": "666dfe6cda552f09091c1cc03fd1143293bd25f47eee4745053efa170fc32e5c",
+          "signature_sha256": "9cfafa1c7accca43871cf633a277dce3a243a48c2579d32a136229e146cfa571"
+        },
+        {
+          "name": "dbus",
+          "version": "1.16.2-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/dbus-1.16.2-2-x86_64.pkg.tar.zst",
+          "sha256": "773bfb7020491b5f44e4cba11d096ac570b9b1e81c6cb1e437a5e7a68b68f974",
+          "signature_sha256": "2ef7339ddf3c80fbb206d51df0351b7e71812d1508521af79f598a8846f6b1e1"
+        },
+        {
+          "name": "elfutils",
+          "version": "0.197-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/elfutils-0.197-1-x86_64.pkg.tar.zst",
+          "sha256": "157a4cb9139add5178c347543f3cc48edac0bcae5056d4e84c0d9d387b08caee",
+          "signature_sha256": "20daff4f75260ade15953dce7a2ce1be0564d95e5e22d694ff6d8ce7c572e6c8"
+        },
+        {
+          "name": "iproute2",
+          "version": "7.3.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/iproute2-7.3.0-1-x86_64.pkg.tar.zst",
+          "sha256": "e7afcf7bee5976e3c01053e46ebd396091a5341e5f267210eff251902aca65e9",
+          "signature_sha256": "1699d4b856d4752eac56d2ecad160dbfcb12040f8fe7e9fe91a18674ece89f33"
+        },
+        {
+          "name": "patch",
+          "version": "2.8.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/patch-2.8.1-1-x86_64.pkg.tar.zst",
+          "sha256": "b8588edee237a313229576bdc9270f371419aafe8efb88727b23c30a068f7b5e",
+          "signature_sha256": "3b31928055969270d9a887b7bb4e65c1a39cad8c864c59267033178fbf82f519"
+        },
+        {
+          "name": "pkgconf",
+          "version": "3.0.10-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/pkgconf-3.0.10-1-x86_64.pkg.tar.zst",
+          "sha256": "ebc5c0d48f84b21c5b4fe80c9ee4106ad5944a0b32dbb61a30edbd154b398e92",
+          "signature_sha256": "18d3a7a4f31ce04a3d1249fd128810e5dbc9020d9126acdc716ff84485fc82df"
+        },
+        {
+          "name": "systemd",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "fd6d2e14fa2b42c793ae5c52054414a5b74932b152023453facd287f268b3622",
+          "signature_sha256": "d327feb193f164b40b1ed0f245799871984f44fa264353b996d8ce8618104480"
+        },
+        {
+          "name": "systemd-sysvcompat",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-sysvcompat-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "bcb8ce7318492704ba8360151a2b032d92691cfa81ff104f638c5a449a541dea",
+          "signature_sha256": "e863a482af56882ae0b5577f108fb93dfe503e81125583dfb07d430885b0b672"
+        },
+        {
+          "name": "texinfo",
+          "version": "7.3-3",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/texinfo-7.3-3-x86_64.pkg.tar.zst",
+          "sha256": "61ff9ffa1515e03cbe85ac4dd1fee80c13e513ed99f5fc3753ff9fb9a0705b9d",
+          "signature_sha256": "1e8b7925463d0b773bd6827e0079cfd0a9cf06e056a3c16fe0aa41890b57be0c"
+        }
+      ]
+    },
+    "rootfs": {
+      "targets": [
+        "git",
+        "openssh",
+        "man-db",
+        "bash-completion"
+      ],
+      "packages": [
+        {
+          "name": "linux-api-headers",
+          "version": "7.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/linux-api-headers-7.3-1-x86_64.pkg.tar.zst",
+          "sha256": "a5a6f5fc8922ef454c54e65e321906183e6606acaadaf416896dcbc44f2194ed",
+          "signature_sha256": "4b9722becfb636ad2ca2e0f69181dfb314fd53ed63c1435a8160f81f8ae9906c"
+        },
+        {
+          "name": "perl",
+          "version": "5.44.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/perl-5.44.0-1-x86_64.pkg.tar.zst",
+          "sha256": "f7170b9ac09dfc4d46decd5e953888a379215af0207e361bbd426efa53968c70",
+          "signature_sha256": "ab13249544e71e8f128494e2c24a0389b8ff4230319c37238ac71d08870ed740"
+        },
+        {
+          "name": "perl-error",
+          "version": "0.17030-3",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-error-0.17030-3-any.pkg.tar.zst",
+          "sha256": "2a6df48b14b3ea0cd6154b46825b4d056b9525a9a3e9afe761decda1d115d196",
+          "signature_sha256": "09e982cc6edfe66099bb6b8e6e03864de5e86591aa4fa6eb7cdcf18cceea4d8b"
+        },
+        {
+          "name": "perl-timedate",
+          "version": "2.35-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-timedate-2.35-1-any.pkg.tar.zst",
+          "sha256": "225b05f5d301b7e168299240b9369cece8d0bddee8627117ce23a57880679715",
+          "signature_sha256": "cd483a6b3b5f8e7af69dec3df347cff644ea2e5323d4384bec2e04d5e36953be"
+        },
+        {
+          "name": "perl-mailtools",
+          "version": "2.22-3",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/perl-mailtools-2.22-3-any.pkg.tar.zst",
+          "sha256": "d93f6c122fa2301c2bd02095b8aaf9c225b5f26f64bb25d2199bfa9a1d3f47ba",
+          "signature_sha256": "3bf340c8444991d8d8a16193da0f45f40245491adafeb82f8a82f1e2fb667ef8"
+        },
+        {
+          "name": "zlib-ng",
+          "version": "2.3.3-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/zlib-ng-2.3.3-1-x86_64.pkg.tar.zst",
+          "sha256": "52971dcf5ca5e763a070518da9d615be52ea8f645fd44ee323211b6251d1cc67",
+          "signature_sha256": "64e21f43c06cb7827f04e09a12fc99bfb3092c38433fd2cf3f0026f97560b306"
+        },
+        {
+          "name": "brotli",
+          "version": "1.2.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/brotli-1.2.1-1-x86_64.pkg.tar.zst",
+          "sha256": "dff80818057da76e93c90045f7d9eef0469c35caa03b153cae02ba47bd3c4db2",
+          "signature_sha256": "a6dfa31b78f089e965de666687cddb34f26618e389bca0930dab1383cacdbaad"
+        },
+        {
+          "name": "libldap",
+          "version": "2.7.2-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libldap-2.7.2-2-x86_64.pkg.tar.zst",
+          "sha256": "a11255b067d9b6b85f5d8d4ca8a145eefcc496e4f9ac04e4d6c378042815266b",
+          "signature_sha256": "d73415e867f795df4064f39e7f534979f473fd46da91fca0eebba42ef57b93a7"
+        },
+        {
+          "name": "systemd-libs",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-libs-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "fbf6d77053bb210c8fd3f473f86159870ece009506828e3d4a7b8c425a50995e",
+          "signature_sha256": "5e681764bc8aa1a3688844152cd552975e4829dfecc8810450fe34785fdae6da"
+        },
+        {
+          "name": "ca-certificates-mozilla",
+          "version": "3.132-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/ca-certificates-mozilla-3.132-1-x86_64.pkg.tar.zst",
+          "sha256": "d2305ed8c1426e018ad611cb6e7fa387c3cac0f2e7040401dae2f1f78e0867ab",
+          "signature_sha256": "78f8739c0dda56e32318c1c3c743c1f8c94663f3cb4a5588e143cb936d9e5a4c"
+        },
+        {
+          "name": "git",
+          "version": "2.56.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/git-2.56.0-1-x86_64.pkg.tar.zst",
+          "sha256": "2da35402982c74083251b56bb04ee53bc14377dcc58cbb7e8682f1980beaee83",
+          "signature_sha256": "4f45db3897ea1a71c2fb142c7045b821e65b77ca435ac3940880d69999479d57"
+        },
+        {
+          "name": "libedit",
+          "version": "20260512_3.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libedit-20260512_3.1-1-x86_64.pkg.tar.zst",
+          "sha256": "70cb736e4fdee330cd0dfab45875f6ea378ae819958dd15748c300b8d7285b42",
+          "signature_sha256": "6f61da87117c55f2eef074dc61bb9aa33539e0b80edb2e0e7be9af98e2609f61"
+        },
+        {
+          "name": "openssh",
+          "version": "10.6p1-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/openssh-10.6p1-2-x86_64.pkg.tar.zst",
+          "sha256": "f260869a1e9a27b1efa44216df6213187dccce6019cabcd0b260f2d35358d721",
+          "signature_sha256": "3df9e7913e5d48fc962cc3942b358b746255bc909ffa4453b53818d7e41048e6"
+        },
+        {
+          "name": "libpipeline",
+          "version": "1.5.8-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libpipeline-1.5.8-1-x86_64.pkg.tar.zst",
+          "sha256": "35caa28ccb5f00d06f043a68004c406d4985dd4557669e972c7fafeb1af3be5f",
+          "signature_sha256": "c102c907e0c8ec14367e46465dd046db0ca9655e8d0c3ec2c2204a8870ca1e7b"
+        },
+        {
+          "name": "less",
+          "version": "1:710-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/less-1:710-1-x86_64.pkg.tar.zst",
+          "sha256": "77cad584d9844c93ee587e36034a7c01321f8fb19c54e82b6736e56260ff8cd6",
+          "signature_sha256": "6cf0b77fbfe38d7dea29e7c793ad6c9b35bbf733fa89a339be4dce228eb15499"
+        },
+        {
+          "name": "man-db",
+          "version": "2.13.1-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/man-db-2.13.1-2-x86_64.pkg.tar.zst",
+          "sha256": "499a8dc7e6b080514528352e7dff198717b85427c4722b878c5a7f56c9c14881",
+          "signature_sha256": "2e42e518b08f9a27bd2d6ecc261f25b04687a4d135b74565669f5c98e7c78097"
+        },
+        {
+          "name": "bash-completion",
+          "version": "2.18.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/extra/os/x86_64/bash-completion-2.18.0-1-any.pkg.tar.zst",
+          "sha256": "9cfeac46993b02fe6617bdaf826b7fead128657e2622d0442f4dc4395d3af952",
+          "signature_sha256": "486508e2c87576e3ccf825762898228a9e010d751773c4feaa7fd4303c3d0f47"
+        },
+        {
+          "name": "dbus",
+          "version": "1.16.2-2",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/dbus-1.16.2-2-x86_64.pkg.tar.zst",
+          "sha256": "773bfb7020491b5f44e4cba11d096ac570b9b1e81c6cb1e437a5e7a68b68f974",
+          "signature_sha256": "2ef7339ddf3c80fbb206d51df0351b7e71812d1508521af79f598a8846f6b1e1"
+        },
+        {
+          "name": "libelf",
+          "version": "0.197-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/libelf-0.197-1-x86_64.pkg.tar.zst",
+          "sha256": "f8341a1e281ffd294d81891c95dfcd7cbcf9b5527b160d4b54848ec79a19abc1",
+          "signature_sha256": "8c1cd68bb070304887d80268bc220a449d4cd189ac92c0d0d382c39480dbed22"
+        },
+        {
+          "name": "elfutils",
+          "version": "0.197-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/elfutils-0.197-1-x86_64.pkg.tar.zst",
+          "sha256": "157a4cb9139add5178c347543f3cc48edac0bcae5056d4e84c0d9d387b08caee",
+          "signature_sha256": "20daff4f75260ade15953dce7a2ce1be0564d95e5e22d694ff6d8ce7c572e6c8"
+        },
+        {
+          "name": "iproute2",
+          "version": "7.3.0-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/iproute2-7.3.0-1-x86_64.pkg.tar.zst",
+          "sha256": "e7afcf7bee5976e3c01053e46ebd396091a5341e5f267210eff251902aca65e9",
+          "signature_sha256": "1699d4b856d4752eac56d2ecad160dbfcb12040f8fe7e9fe91a18674ece89f33"
+        },
+        {
+          "name": "patch",
+          "version": "2.8.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/patch-2.8.1-1-x86_64.pkg.tar.zst",
+          "sha256": "b8588edee237a313229576bdc9270f371419aafe8efb88727b23c30a068f7b5e",
+          "signature_sha256": "3b31928055969270d9a887b7bb4e65c1a39cad8c864c59267033178fbf82f519"
+        },
+        {
+          "name": "pkgconf",
+          "version": "3.0.10-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/pkgconf-3.0.10-1-x86_64.pkg.tar.zst",
+          "sha256": "ebc5c0d48f84b21c5b4fe80c9ee4106ad5944a0b32dbb61a30edbd154b398e92",
+          "signature_sha256": "18d3a7a4f31ce04a3d1249fd128810e5dbc9020d9126acdc716ff84485fc82df"
+        },
+        {
+          "name": "systemd",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "fd6d2e14fa2b42c793ae5c52054414a5b74932b152023453facd287f268b3622",
+          "signature_sha256": "d327feb193f164b40b1ed0f245799871984f44fa264353b996d8ce8618104480"
+        },
+        {
+          "name": "systemd-sysvcompat",
+          "version": "262.1-1",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/systemd-sysvcompat-262.1-1-x86_64.pkg.tar.zst",
+          "sha256": "bcb8ce7318492704ba8360151a2b032d92691cfa81ff104f638c5a449a541dea",
+          "signature_sha256": "e863a482af56882ae0b5577f108fb93dfe503e81125583dfb07d430885b0b672"
+        },
+        {
+          "name": "texinfo",
+          "version": "7.3-3",
+          "url": "https://geo.mirror.pkgbuild.com/core/os/x86_64/texinfo-7.3-3-x86_64.pkg.tar.zst",
+          "sha256": "61ff9ffa1515e03cbe85ac4dd1fee80c13e513ed99f5fc3753ff9fb9a0705b9d",
+          "signature_sha256": "1e8b7925463d0b773bd6827e0079cfd0a9cf06e056a3c16fe0aa41890b57be0c"
+        }
+      ]
+    }
+  },
+  "image": "docker.io/library/archlinux:base-devel@sha256:2acfa2683d458b7803b7aa4ee3c139d2ba6922cd84666fcb7496a3a02fcc4c83"
+}

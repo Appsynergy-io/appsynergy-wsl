@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""The local and CI validation entry point."""
+import argparse
+import os
+import subprocess
+import shutil
+import shlex
+import tarfile
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from wslbuild.changes import changed_paths, git
+from wslbuild.policy import classify
+from wslbuild.runner import run_stages
+
+
+def main():
+    if sys.version_info < (3, 11) or not hasattr(tarfile, "data_filter"):
+        print("Missing prerequisite: Python 3.11+ with tarfile data-filter support is required; use an updated Python 3.12+ installation.")
+        return 2
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("mode", nargs="?", choices=["fast", "gate", "build"], default="fast")
+    parser.add_argument("--base", help="base commit or ref for local changes and commit lint")
+    parser.add_argument("--no-fail-fast", action="store_true", help="collect cheap check failures")
+    parser.add_argument("--component", choices=["all", "kernel", "rootfs"], default="all")
+    parser.add_argument("--signed-package", help="separately signed integration package directory; build mode only")
+    parser.add_argument("--rootfs", help="gate: directory containing the candidate rootfs for real runtime checks")
+    parser.add_argument("--stage", choices=["gates", "package", "rootfs"], help="CI split; uses identical local stages")
+    args = parser.parse_args()
+    if args.signed_package and args.mode != "build":
+        parser.error("--signed-package requires build mode")
+    if args.component != "all" and args.mode != "build":
+        parser.error("--component requires build mode")
+    if args.rootfs and args.mode != "gate":
+        parser.error("--rootfs requires gate mode")
+    if args.stage and args.mode != "gate":
+        parser.error("--stage requires gate mode")
+    os.chdir(ROOT)
+    os.environ["PATH"] = str(ROOT / ".cache/bin") + os.pathsep + os.environ.get("PATH", "")
+    if args.mode == "build":
+        if args.component in {"all", "rootfs"} and not args.signed_package:
+            print("Missing prerequisite: --signed-package DIRECTORY. Build mode never receives a signing key. Build the integration package and sign it separately first.")
+            return 2
+        if args.signed_package and not Path(args.signed_package).is_dir():
+            print("Missing prerequisite: signed integration package directory does not exist.")
+            return 2
+        if args.signed_package:
+            archives = list(Path(args.signed_package).glob("*.pkg.tar.zst"))
+            if len(archives) != 1 or not Path(str(archives[0]) + ".sig").is_file():
+                print("Missing prerequisite: the package directory must contain one integration archive and its detached signature.")
+                return 2
+        gate = subprocess.run([sys.executable, str(ROOT / "scripts/check"), "gate"] + (["--base", args.base] if args.base else []) + (["--no-fail-fast"] if args.no_fail_fast else []), check=False)
+        if gate.returncode:
+            return gate.returncode
+        commands = []
+        if args.component in {"all", "kernel"}:
+            commands.append([sys.executable, "scripts/build-kernel"])
+        if args.component in {"all", "rootfs"}:
+            commands.append([sys.executable, "-m", "wslbuild.rootfs", "rootfs", "--signed-package", str(Path(args.signed_package).resolve())])
+        for command in commands:
+            result = subprocess.run(command)
+            if result.returncode:
+                print("FAIL build component. Rerun: " + shlex.join(command))
+                return 2 if result.returncode == 2 else 1
+        print("PASS build: unsigned testing artifacts produced. Compilation does not establish Windows acceptance. Use candidate assembly only from a committed clean source tree.")
+        return 0
+    base = args.base
+    kind = "product"
+    if args.mode == "fast":
+        try:
+            base = git("rev-parse", "--verify", base or "origin/main").decode().strip()
+            head = git("rev-parse", "HEAD").decode().strip()
+            paths, uncertain = changed_paths(base, head, True, True)
+            kind = classify(paths, uncertain)
+        except Exception:
+            kind = "product"
+    stages = [("sources", [sys.executable, "-m", "wslbuild.checks", "sources"]),
+              ("docs", [sys.executable, "-m", "wslbuild.checks", "docs"])]
+    tools = ["git", "gpg"]
+    if kind != "docs" or args.mode == "gate":
+        stages += [("shell", ["shellcheck", "--severity=style", "packaging/first-run", "packaging/health-check", "packaging/check-package", "packaging/enable-channel", "build/install-packages", "build/rootfs", "kernel/compile"]),
+                   ("powershell", [str(ROOT / ".cache/PowerShell/pwsh"), "-NoProfile", "-NonInteractive", "-File", "scripts/check-powershell.ps1"]),
+                   ("workflow", ["actionlint", ".github/workflows/ci.yml"]),
+                   ("security", ["zizmor", "--offline", "--no-progress", ".github/workflows/ci.yml"]),
+                   ("tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"])]
+        tools += ["shellcheck", "actionlint", "zizmor", str(ROOT / ".cache/PowerShell/pwsh")]
+    if args.mode == "gate":
+        stages += [("secrets", [sys.executable, "-m", "wslbuild.checks", "secrets"]),
+                   ("commits", [sys.executable, "-m", "wslbuild.checks", "commits"] + (["--base", base] if base else []))]
+        tools += ["gitleaks"]
+        if args.stage != "gates":
+            tools += ["docker"]
+            stages += [("package", [sys.executable, "-m", "wslbuild.checks", "package"])]
+    if args.stage == "package":
+        if args.mode != "gate":
+            parser.error("--stage package requires gate mode")
+        stages = [("package", [sys.executable, "-m", "wslbuild.checks", "package"])]
+        tools = ["docker"]
+    if args.rootfs:
+        rootfs_path = Path(args.rootfs).resolve() / "rootfs.tar.zst"
+        if not rootfs_path.is_file():
+            print(f"Missing prerequisite: {rootfs_path}")
+            return 2
+        rootfs_stage = ("rootfs-runtime", [sys.executable, "scripts/test-rootfs", str(rootfs_path)])
+        if args.stage == "rootfs":
+            stages = [rootfs_stage]
+            tools = ["docker"]
+        elif args.stage is None:
+            stages.append(rootfs_stage)
+            tools.append("docker")
+    elif args.stage == "rootfs":
+        parser.error("--stage rootfs requires --rootfs DIRECTORY")
+    missing = [tool for tool in tools if not shutil.which(tool)]
+    if missing:
+        print("Missing prerequisites: " + ", ".join(missing) + ". Run scripts/bootstrap for pinned lint tools; package checks require Docker.")
+        return 2
+    if "docker" in tools:
+        try:
+            daemon = subprocess.run(["docker", "info", "--format", "{{.ServerVersion}}"], capture_output=True, timeout=15)
+            available = daemon.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            available = False
+        if not available:
+            print("Missing prerequisite: Docker daemon is unavailable. Start Docker and rerun the same command.")
+            return 2
+    logs = ROOT / ".cache/check-logs" / f"{time.time_ns()}-{args.mode}"
+    expensive = []
+    if args.stage not in {"package", "rootfs"}:
+        while stages and stages[-1][0] in {"package", "rootfs-runtime"}:
+            expensive.insert(0, stages.pop())
+    result = run_stages(stages, logs, args.no_fail_fast, ROOT)
+    if result == 0 and expensive:
+        result = run_stages(expensive, logs, False, ROOT)
+    elif expensive:
+        print("NOT RUN: package/rootfs execution, because a cheap gate failed (also in diagnostic mode).")
+    if result == 0:
+        print(f"PASS {args.mode} ({args.stage or 'all implemented stages'}). Logs: {logs}")
+    print("Windows acceptance and live publication are separate; a local gate cannot establish them. Kernel/rootfs compilation runs only in build mode.")
+    if args.mode == "fast":
+        if kind == "docs":
+            print("Documentation-only: shell, PowerShell, workflow/security analysis and behavioral tests were omitted.")
+        print("Fast mode also omits package build, secret scanning and commit lint. Run scripts/check gate before shipping.")
+    return result
+
+
+if __name__ == "__main__":
+    sys.exit(main())

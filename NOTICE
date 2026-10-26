@@ -1,0 +1,22 @@
+AppSynergy WSL tooling: Copyright (c) 2026 AppSynergy, MIT (see LICENSE).
+
+The AppSynergy branding asset is copied unchanged from Appsynergy-io/appsynergy-linux,
+commit 3588259480f0326745b318904ad16d1784eeca12. Its source path and hash are in
+sources/inputs.lock.json. The parent repository's MIT notice is retained in LICENSE.
+
+The kernel source lineage is AppSynergy's CachyOS server kernel. CachyOS linux-cachyos
+recipe commit: bf83c8e65c1e801fb6ed4734824dbee4a73031be. The source release and patch
+hashes, signer fingerprints and inherited configuration hashes are in the source lock.
+Kernel source and the distributed adaptation/stable patch remain under GPL-2.0-only
+and their constituent files' license notices. Unmodified upstream license texts are
+retained under LICENSES/kernel; COPYING identifies the kernel's licensing terms.
+The stable delta preserves the AppSynergy/CachyOS source, with signed upstream
+ancestry and reviewed reconciliations recorded in kernel/stable.lock.json.
+Binary distribution must include corresponding source, patches, configuration,
+build evidence and notices; a testing build is not a supported release.
+
+Workflow, local validation, documentation and audit methodology adapted from
+imabee101/prompt-recipe-book at 4e11740139a2fb586c2114ca53c6356b5663d373:
+rust-ci-github-actions, rust-local-check-script, claude-md-write-and-audit,
+security-defect-audit, security-audit-remediation and rust-ci-green.
+Ecosystem-specific Rust examples are adapted to Python, shell and Arch packaging.

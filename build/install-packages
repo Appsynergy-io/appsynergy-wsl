@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Runs only inside an offline disposable container containing no credentials.
+set -euo pipefail
+pacman-key --init
+pacman-key --populate archlinux
+sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' /etc/pacman.conf
+mapfile -t packages < <(find /packages -maxdepth 1 -name '*.pkg.tar.zst' -print | sort)
+[[ ${#packages[@]} -gt 0 ]]
+pacman -U --noconfirm "${packages[@]}"
+pacman -Q > /work/package-inventory.txt

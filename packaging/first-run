@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Explicitly run as root after import. Passwords are handled only by passwd.
+set -euo pipefail
+if [[ $EUID != 0 ]]; then
+    echo 'Run as root: wsl.exe -d AppSynergy -u root -- appsynergy-first-run' >&2
+    exit 2
+fi
+if [[ $# != 1 || ! $1 =~ ^[a-z][a-z0-9_-]{0,30}$ || $1 == root ]]; then
+    echo 'Usage: appsynergy-first-run <new-linux-username>' >&2
+    exit 2
+fi
+username=$1
+state=/var/lib/appsynergy-wsl
+install -dm700 "$state"
+exec 9>"$state/setup.lock"
+flock -n 9 || { echo 'Another first-run setup is active.' >&2; exit 1; }
+umask 077
+if [[ ! -f $state/keyring.ready || ! -f /etc/pacman.d/gnupg/trustdb.gpg ]]; then
+    # Each imported instance creates its own local pacman master key.
+    pacman-key --init
+    pacman-key --populate archlinux appsynergy wsl-integration
+    printf 'ready\n' > "$state/keyring.ready.new"
+    mv "$state/keyring.ready.new" "$state/keyring.ready"
+fi
+if [[ -f $state/user ]]; then
+    [[ $(cat "$state/user") == "$username" ]] || {
+        echo 'Resume with the same username recorded by the interrupted setup.' >&2; exit 1;
+    }
+else
+    if getent passwd "$username" >/dev/null; then
+        echo 'Refusing to adopt an existing user.' >&2
+        exit 1
+    fi
+    printf '%s\n' "$username" > "$state/user.new"
+    mv "$state/user.new" "$state/user"
+fi
+if [[ -f $state/complete ]]; then
+    echo "Setup is already complete for $username."
+    exit 0
+fi
+if ! getent passwd "$username" >/dev/null; then
+    useradd --create-home --shell /bin/bash "$username"
+fi
+[[ $(id -u "$username") -ge 1000 ]] || { echo 'Refusing a system UID.' >&2; exit 1; }
+echo "Set a Linux password for $username; sudo will require it."
+passwd "$username"
+sudo_file=$(mktemp /etc/sudoers.d/.appsynergy-wsl.XXXXXX)
+trap 'rm -f "$sudo_file"' EXIT
+printf '%s ALL=(ALL:ALL) ALL\n' "$username" > "$sudo_file"
+chmod 0440 "$sudo_file"
+visudo -cf "$sudo_file"
+mv "$sudo_file" /etc/sudoers.d/appsynergy-wsl
+python3 - "$username" <<'PY'
+import configparser
+import os
+import sys
+from pathlib import Path
+
+path = Path('/etc/wsl.conf')
+config = configparser.ConfigParser(interpolation=None)
+config.read(path)
+if not config.has_section('user'):
+    config.add_section('user')
+config.set('user', 'default', sys.argv[1])
+temporary = path.with_suffix('.conf.new')
+with temporary.open('w') as stream:
+    config.write(stream)
+    stream.flush()
+    os.fsync(stream.fileno())
+temporary.chmod(0o644)
+temporary.replace(path)
+PY
+printf 'complete\n' > "$state/complete.new"
+mv "$state/complete.new" "$state/complete"
+echo 'Setup complete. Terminate this distribution from Windows, then reopen it.'

@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Download and authenticate the existing AppSynergy kernel lineage."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.inputs import prepare_sources
+
+if __name__ == "__main__":
+    prepare_sources()

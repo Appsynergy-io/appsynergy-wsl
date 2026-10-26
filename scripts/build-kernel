@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Kernel build wrapper used unchanged locally and by CI."""
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from wslbuild.build import kernel, kernel_input_hash
+from wslbuild.evidence import digest
+from wslbuild.inputs import CACHE
+
+for tool in ("docker", "gpg", "curl"):
+    if not shutil.which(tool):
+        print(f"Missing prerequisite: {tool}", file=sys.stderr)
+        raise SystemExit(2)
+CACHE.mkdir(parents=True, exist_ok=True)
+if os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted":
+    # Disposable runner only. These SDKs are not used by the pinned Arch builder.
+    # No host SDK cleanup is performed in local builds.
+    unused = [path for path in ("/usr/share/dotnet", "/usr/local/lib/android", "/opt/ghc", "/opt/hostedtoolcache", "/usr/local/.ghcup")
+              if not Path(sys.executable).resolve().is_relative_to(path)]
+    subprocess.run(["sudo", "rm", "-rf", "--", *unused], check=True)
+receipt = CACHE / "kernel" / kernel_input_hash() / "output/kernel-inputs.json"
+if not receipt.is_file() and shutil.disk_usage(CACHE).free <= 40 * 1024**3:
+    print("Missing prerequisite: 40 GiB free space for kernel compilation.", file=sys.stderr)
+    raise SystemExit(2)
+try:
+    output = kernel()
+except subprocess.SubprocessError:
+    log = CACHE / "kernel" / kernel_input_hash() / "build.log"
+    if log.is_file():
+        print("\n".join(log.read_text(errors="replace").splitlines()[-80:]))
+        print(f"Full log: {log}")
+    print("FAIL kernel build. Rerun: python3 scripts/build-kernel")
+    raise SystemExit(1)
+metadata = {"schema": 1, "inputs_sha256": kernel_input_hash(),
+            "files": {p.name: {"sha256": digest(p), "size": p.stat().st_size} for p in output.iterdir() if p.is_file() and p.name != "kernel-inputs.json"}}
+(output / "kernel-inputs.json").write_text(json.dumps(metadata, indent=2) + "\n")
+if os.environ.get("GITHUB_OUTPUT"):
+    with open(os.environ["GITHUB_OUTPUT"], "a") as stream:
+        stream.write(f"directory={output}\n")

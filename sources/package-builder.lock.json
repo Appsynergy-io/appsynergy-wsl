@@ -1,0 +1,5 @@
+{
+  "image": "docker.io/library/archlinux:base-devel@sha256:2acfa2683d458b7803b7aa4ee3c139d2ba6922cd84666fcb7496a3a02fcc4c83",
+  "source": "https://gitlab.archlinux.org/archlinux/archlinux-docker.git",
+  "commit": "966ed6c13bd172397907f5c4d4cced069e6f3d47"
+}

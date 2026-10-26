@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+Target = appsynergy-wsl-integration
+
+[Action]
+Description = Preserve AppSynergy WSL identity
+When = PostTransaction
+Exec = /usr/bin/ln -sf /usr/lib/appsynergy-wsl/os-release /etc/os-release
