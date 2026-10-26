@@ -49,6 +49,10 @@ def integration():
             print(f"Unsigned integration package: {output / archives[0].name}")
         finally:
             subprocess.run(["docker", "rm", "-f", name], check=True, capture_output=True)
+    from .publication import build_database
+    with tempfile.TemporaryDirectory(prefix="wsl-package-database-check-") as temp:
+        build_database(archives[0], Path(temp), image)
+    print("PASS integration package and isolated repository database construction")
     return output
 
 

@@ -119,19 +119,10 @@ def package_check():
     image = load_json(ROOT / "sources/package-builder.lock.json")["image"]
     require(re.fullmatch(r"docker.io/library/archlinux:base-devel@sha256:[0-9a-f]{64}", image), "builder digest")
     subprocess.run(["docker", "pull", image], check=True, timeout=300)
-    # Only package inputs enter the offline unprivileged container, never secrets.
-    with tempfile.TemporaryDirectory(prefix="wsl-package-inputs-") as temp:
-        work = Path(temp)
-        work.chmod(0o755)
-        shutil.copytree(ROOT / "packaging", work / "packaging")
-        shutil.copyfile(ROOT / "LICENSE", work / "LICENSE")
-        (work / "sources").mkdir()
-        shutil.copyfile(ROOT / "sources/wsl-integration-signing.asc", work / "sources/wsl-integration-signing.asc")
-        subprocess.run(["docker", "run", "--rm", "--network=none", "--read-only", "--cap-drop=ALL",
-                        "--security-opt=no-new-privileges", "--pids-limit=128", "--memory=1g", "--cpus=2",
-                        "--user=65534:65534", "--tmpfs=/tmp:rw,nosuid,nodev,size=256m,mode=1777",
-                        "--mount", f"type=bind,src={work},dst=/inputs,readonly", image,
-                        "bash", "/inputs/packaging/check-package"], check=True, timeout=300)
+    # Exactly the integration/package-database checks used by CI. Both offline
+    # builders receive only their public inputs, never signing credentials.
+    from .rootfs import integration
+    integration()
 
 
 def main():
