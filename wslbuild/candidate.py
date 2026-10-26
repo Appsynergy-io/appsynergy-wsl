@@ -196,9 +196,14 @@ def acceptance():
     report = load_json(records[0])
     output, manifest = retrieve(report)
     source = manifest["source"]
-    subprocess.run(["git", "merge-base", "--is-ancestor", source, "HEAD"], check=True, timeout=30)
+    subprocess.run(["git", "merge-base", "--is-ancestor", source, "HEAD"], cwd=ROOT, check=True, timeout=30)
     paths = git("diff", "--name-only", "--no-renames", source, "HEAD", "--").splitlines()
-    require(all(p.startswith("acceptance/") and p.endswith(".json") for p in paths), "acceptance promotion must change no product inputs")
+    # The event diff must contain only acceptance JSON (changes.classify).
+    # Candidate history can also contain documentation-only merges, which do
+    # not change input_hash() and deliberately do not create a new candidate.
+    docs = {"README.md", "AGENTS.md", "CLAUDE.md", "assets/appsynergy.svg"}
+    require(all(p in docs or (p.startswith("acceptance/") and p.endswith(".json")) for p in paths),
+            "acceptance promotion must change no product inputs")
     proposed = version_at(source)
     tag = f"appsynergy-wsl-v{manifest['version']}"
     existing = git("tag", "--points-at", source).splitlines()
