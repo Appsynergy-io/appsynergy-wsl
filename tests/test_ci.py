@@ -39,8 +39,10 @@ class AggregateTests(unittest.TestCase):
                     self.assertEqual(self.invoke(kind, main), 0)
 
     def test_missing_cancelled_and_unexpected_skips_fail(self):
-        for status in [None, "cancelled", "failure", "skipped"]:
-            self.assertNotEqual(self.invoke("product", True, {"kernel-build": status}), 0)
+        for job in ["kernel-build", "rootfs-build", "candidate-build", "candidate-sign"]:
+            for status in [None, "cancelled", "failure", "skipped"]:
+                with self.subTest(job=job, status=status):
+                    self.assertNotEqual(self.invoke("product", True, {job: status}), 0)
         self.assertNotEqual(self.invoke("acceptance", True, {"release": "skipped"}), 0)
         self.assertNotEqual(self.invoke("docs", False, {"package-check": "success"}), 0)
 
