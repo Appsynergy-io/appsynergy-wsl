@@ -15,6 +15,84 @@ function Assert-Throw {
     Assert-True $failed $Message
 }
 try {
+    $installerDirectory = Join-Path $testDirectory 'installer'
+    $null = New-Item -ItemType Directory -Path $installerDirectory
+    Copy-Item (Join-Path $PSScriptRoot '../windows/Install.ps1') $installerDirectory
+    $stub = @'
+param($Operation, $Version, $CandidateDirectory, $Distribution, $LinuxUser, [switch]$AllowShutdown)
+Add-Content (Join-Path $PSScriptRoot 'calls') $Operation
+if ($Operation -eq 'Check') { return @{ Version = 'appsynergy-wsl-v0.1.0' } }
+if ($Operation -eq 'Stage' -and (Test-Path (Join-Path $PSScriptRoot 'fail'))) { throw 'Invalid signature fixture' }
+if ($Operation -in @('Stage', 'Install', 'Activate') -and -not $CandidateDirectory -and $Version -cne '0.1.0') { throw 'Wrong version' }
+if ($Operation -eq 'Activate' -and -not $AllowShutdown) { throw 'Missing explicit consent' }
+'@
+    Write-AtomicText (Join-Path $installerDirectory 'AppSynergy.ps1') $stub
+    $installer = Join-Path $installerDirectory 'Install.ps1'
+    $calls = Join-Path $installerDirectory 'calls'
+    $null = & $installer -LinuxUser developer
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Check,Stage,Install') 'default installation never activates'
+    Remove-Item $calls
+    $null = & $installer -Version 0.1.0 -LinuxUser developer -AllowShutdown
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Stage,Install,Activate') 'explicit consent activates after successful installation'
+    Remove-Item $calls
+    $null = & $installer -CandidateDirectory $testDirectory -LinuxUser developer
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Install') 'candidate install avoids release lookup and staging'
+    Remove-Item $calls
+    Write-AtomicText (Join-Path $installerDirectory 'fail') 'fixture'
+    Assert-Throw { & $installer -Version 0.1.0 -LinuxUser developer -AllowShutdown } 'authentication failure stops installation'
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Stage') 'failed staging cannot import or activate'
+    Remove-Item $calls
+    $null = & $installer -LinuxUser developer -WhatIf
+    Assert-True (-not (Test-Path $calls)) 'WhatIf performs no operations'
+    Remove-Item (Join-Path $installerDirectory 'fail')
+    function Invoke-InteractiveInstallerFixture {
+        param([string[]]$Answers)
+        $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME 'pwsh'))
+        foreach ($argument in @('-NoProfile', '-File', $installer)) { $start.ArgumentList.Add($argument) }
+        $start.UseShellExecute = $false
+        $start.RedirectStandardInput = $true
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $process = [Diagnostics.Process]::Start($start)
+        try {
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $errors = $process.StandardError.ReadToEndAsync()
+            foreach ($answer in $Answers) { $process.StandardInput.WriteLine($answer) }
+            $process.StandardInput.Close()
+            if (-not $process.WaitForExit(15000)) { $process.Kill($true); throw 'Interactive installer fixture timed out' }
+            if ($process.ExitCode -ne 0) { throw ($errors.GetAwaiter().GetResult()) }
+            $null = $output.GetAwaiter().GetResult()
+        } finally { $process.Dispose() }
+    }
+    Invoke-InteractiveInstallerFixture @('INVALID', 'developer', 'no')
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Check,Stage,Install') 'flag-free flow validates username and respects declined activation'
+    Remove-Item $calls
+    Invoke-InteractiveInstallerFixture @('developer', 'yes')
+    Assert-True (((Get-Content $calls) -join ',') -ceq 'Status,Check,Stage,Install,Activate') 'flag-free flow activates only after explicit yes'
+    # Exercise the real bootstrap archive verifier without network or Windows side effects.
+    $bootstrapText = Get-Content -Raw (Join-Path $PSScriptRoot '../windows/bootstrap.ps1')
+    $bootstrapAst = [Management.Automation.Language.Parser]::ParseInput($bootstrapText, [ref]$null, [ref]$null)
+    $expandFunction = $bootstrapAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Expand-VerifiedToolArchive' }, $true)
+    . ([scriptblock]::Create($expandFunction.Extent.Text))
+    $zipPath = Join-Path $testDirectory 'tools-fixture.zip'
+    $zip = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($name in @('windows/Install.ps1', 'windows/AppSynergy.ps1', 'windows/AppSynergy.psm1', 'windows/trust/release.pem')) {
+            $writer = [IO.StreamWriter]::new($zip.CreateEntry($name).Open())
+            try { $writer.Write('fixture') } finally { $writer.Dispose() }
+        }
+    } finally { $zip.Dispose() }
+    $entry = @{ size = (Get-Item $zipPath).Length; sha256 = (Get-Sha256 $zipPath) }
+    Expand-VerifiedToolArchive $zipPath $entry (Join-Path $testDirectory 'safe-tools')
+    Assert-True (Test-Path (Join-Path $testDirectory 'safe-tools/windows/Install.ps1')) 'authenticated tools extracted'
+    $entry.sha256 = '0' * 64
+    Assert-Throw { Expand-VerifiedToolArchive $zipPath $entry (Join-Path $testDirectory 'bad-tools') } 'tampered installer rejected'
+    Assert-True (-not (Test-Path (Join-Path $testDirectory 'bad-tools'))) 'no extraction before hash verification'
+    $zip = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Update)
+    try { $null = $zip.CreateEntry('../escape.ps1') } finally { $zip.Dispose() }
+    $entry = @{ size = (Get-Item $zipPath).Length; sha256 = (Get-Sha256 $zipPath) }
+    Assert-Throw { Expand-VerifiedToolArchive $zipPath $entry (Join-Path $testDirectory 'unsafe-tools') } 'signed archive traversal rejected'
+    Assert-True (-not (Test-Path (Join-Path $testDirectory 'unsafe-tools'))) 'all archive paths checked before extraction'
     $text = "# keep comment`r`n[wsl2]`r`nmemory=8GB`r`nkernel=C:\\old`r`nkernelModules=C:\\old.vhdx`r`n[experimental]`r`nautoMemoryReclaim=gradual`r`n"
     $values = @{ kernel = 'C:\\new'; kernelmodules = 'C:\\new.vhdx' }
     $changed = ConvertTo-WslKernelConfiguration $text $values
