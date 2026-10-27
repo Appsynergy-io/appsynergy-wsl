@@ -187,9 +187,8 @@ if ($Operation -eq 'Activate' -and -not $AllowShutdown) { throw 'Missing explici
         Assert-True ((Get-Sha256 (Join-Path $owned 'kernel')) -ceq $artifacts.kernel.sha256) 'import and activation consume a verified owned copy'
         $ownedAgain = Copy-VerifiedCandidate $testDirectory (Join-Path $testDirectory 'owned') -PublicKey $publicKey
         Assert-True ($ownedAgain -ceq $owned) 'candidate staging is idempotent'
-        Write-AtomicText (Join-Path $testDirectory 'acceptance.json') '{"fixture":true}'
-        $proof = @{ schema = 1; source = $manifest.source; version = $manifest.version; acceptance_commit = ('d' * 40);
-                    manifest_sha256 = (Get-Sha256 $manifestPath); maintainer_acceptance_sha256 = (Get-Sha256 (Join-Path $testDirectory 'acceptance.json')) }
+        $proof = @{ schema = 2; source = $manifest.source; version = $manifest.version; publication_commit = ('d' * 40);
+                    manifest_sha256 = (Get-Sha256 $manifestPath) }
         $proofPath = Join-Path $testDirectory 'promotion.json'
         Write-AtomicText $proofPath ($proof | ConvertTo-Json)
         $proofSignature = $rsa.SignData([IO.File]::ReadAllBytes($proofPath), [Security.Cryptography.HashAlgorithmName]::SHA256,
@@ -197,8 +196,8 @@ if ($Operation -eq 'Activate' -and -not $AllowShutdown) { throw 'Missing explici
         [IO.File]::WriteAllBytes((Join-Path $testDirectory 'promotion.json.rsa.sig'), $proofSignature)
         $verified = Get-VerifiedManifest $testDirectory -PublicKey $publicKey
         $null = Get-VerifiedPromotion $testDirectory $verified -PublicKey $publicKey
-        Write-AtomicText (Join-Path $testDirectory 'acceptance.json') '{"changed":true}'
-        Assert-Throw { Get-VerifiedPromotion $testDirectory $verified -PublicKey $publicKey } 'promotion binds exact acceptance bytes'
+        $verified._verified_sha256 = '0' * 64
+        Assert-Throw { Get-VerifiedPromotion $testDirectory $verified -PublicKey $publicKey } 'promotion binds exact manifest bytes'
         Write-AtomicText (Join-Path $testDirectory 'kernel') 'bad fixture!'
         Assert-Throw { Get-VerifiedManifest $testDirectory -PublicKey $publicKey } 'tampered bytes rejected'
         Write-AtomicText $manifestPath (($manifest | ConvertTo-Json -Depth 16) + ' ')

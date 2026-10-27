@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       kind: ${{ steps.diff.outputs.kind }}
+      release: ${{ steps.diff.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -248,8 +249,14 @@ jobs:
         run: python3 -m wslbuild.candidate acceptance
 
   release:
-    needs: [changes, acceptance-check]
-    if: needs.changes.outputs.kind == 'acceptance' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [changes, gates, package-check, package-sign, kernel-build, rootfs-build, candidate-build, candidate-sign]
+    if: >-
+      always() && !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.release == 'true' && needs.gates.result == 'success' &&
+      needs.package-check.result == 'success' && needs.package-sign.result == 'success' &&
+      needs.kernel-build.result == 'success' && needs.rootfs-build.result == 'success' &&
+      needs.candidate-build.result == 'success' && needs.candidate-sign.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: release
     timeout-minutes: 10
@@ -264,12 +271,16 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Publish accepted bytes without rebuilding
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: candidate-${{ github.sha }}-${{ github.run_attempt }}
+          path: .cache/promotion-candidate
+      - name: Publish signed bytes without rebuilding
         env:
           GH_TOKEN: ${{ github.token }}
           WSL_PACKAGE_SIGNING_KEY: ${{ secrets.WSL_PACKAGE_SIGNING_KEY }}
           WSL_MANIFEST_SIGNING_KEY: ${{ secrets.WSL_MANIFEST_SIGNING_KEY }}
-        run: python3 scripts/promote
+        run: python3 scripts/promote .cache/promotion-candidate
 
   ci-ok:
     needs: [changes, gates, package-check, package-sign, test-package-sign, kernel-build, rootfs-build, candidate-build, candidate-sign, acceptance-check, release]

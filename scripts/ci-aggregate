@@ -12,12 +12,14 @@ needs = json.loads(os.environ["NEEDS_JSON"])
 kind = needs["changes"].get("outputs", {}).get("kind")
 if kind not in {"docs", "product", "acceptance"}:
     raise SystemExit("changes did not produce a valid classification")
+if needs['changes'].get('outputs', {}).get('release') not in {'true', 'false'}:
+    raise SystemExit('changes did not produce a valid release decision')
 product = kind == 'product'
 acceptance = kind == 'acceptance'
 main = os.environ.get('EVENT_NAME') == 'push' and os.environ.get('EVENT_REF') == 'refs/heads/main'
 expected = {'changes': True, 'gates': True, 'package-check': product,
             'package-sign': product and main, 'test-package-sign': product and not main,
             'kernel-build': product, 'rootfs-build': product, 'candidate-build': product,
-            'candidate-sign': product and main, 'acceptance-check': acceptance, 'release': acceptance and main}
+            'candidate-sign': product and main, 'acceptance-check': acceptance, 'release': product and main and needs['changes'].get('outputs', {}).get('release') == 'true'}
 aggregate({name: value["result"] for name, value in needs.items()}, expected)
-print('All expected checks passed. Windows acceptance applies only to a verified acceptance record.')
+print('All expected checks passed. Release requires verified signed artifacts and successful build gates.')

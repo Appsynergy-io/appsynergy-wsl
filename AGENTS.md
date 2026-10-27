@@ -12,7 +12,7 @@
 - `python3 scripts/fetch-sources` authenticates the pinned AppSynergy/CachyOS source.
 - `python3 -m unittest discover -s tests -v` runs behavioral regression tests.
 - Windows: `windows/Acceptance.ps1` uses Start, Setup, Resume, Finish and Cleanup phases; see README.md for explicit shutdown/reboot handling.
-- Compilation and container tests do not establish Windows acceptance.
+- Report Linux checks and Windows host tests separately.
 
 # Conventions
 
@@ -34,8 +34,8 @@
 - Add real job dependencies before expensive work. Keep `ci-ok` strict about missing and unexpected skips.
 - Use the same stages in `scripts/check` and CI; do not add CI-only substitutes for local checks.
 - Keep dependency updates and merges manual. Do not add bots, schedules or background update services.
-- Keep release signing credentials out of builds and tests. Kbuild's ephemeral module key stays in the private build cache; ship only its public certificate. Publish accepted bytes without rebuilding.
-- Acceptance evidence must refer to an existing trusted-main candidate and change no product inputs.
+- Keep release signing credentials out of builds and tests. Kbuild's ephemeral module key stays in the private build cache; ship only its public certificate. Publish signed bytes without rebuilding.
+- Windows reports are optional QA, not release prerequisites. Release only exact signed main-run artifacts after all required build checks pass.
 - Preserve failing assertions and genuine gates when fixing failures.
 
 # Gotchas

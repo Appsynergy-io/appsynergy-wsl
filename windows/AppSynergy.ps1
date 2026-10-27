@@ -38,7 +38,7 @@ if ($Operation -eq 'Status') {
 if ($Operation -eq 'Check') {
     $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Appsynergy-io/appsynergy-wsl/releases/latest' -TimeoutSec 30
     if ($release.tag_name -notmatch '^appsynergy-wsl-v\d+\.\d+\.\d+$' -or $release.draft -or $release.prerelease) {
-        throw 'No supported AppSynergy WSL release is available'
+        throw 'No AppSynergy WSL release is available'
     }
     [ordered]@{ Version = $release.tag_name; Url = $release.html_url; Activated = (Test-Path -LiteralPath $journalPath) }
     return
@@ -68,7 +68,7 @@ try {
             }
             $manifest = Get-VerifiedManifest $temporary -MetadataOnly
             if ($manifest.version -cne $Version) { throw 'Signed version does not match requested version' }
-            foreach ($name in @('promotion.json', 'promotion.json.rsa.sig', 'acceptance.json')) {
+            foreach ($name in @('promotion.json', 'promotion.json.rsa.sig')) {
                 Receive-BoundedFile -Uri "$origin/$name" -Path (Join-Path $temporary $name) -MaximumBytes 1MB
             }
             $null = Get-VerifiedPromotion $temporary $manifest
@@ -126,7 +126,7 @@ try {
         & $wslExecutable -d $Distribution -u root -- appsynergy-first-run $LinuxUser
         if ($LASTEXITCODE -ne 0) { throw "Setup interrupted. Resume: wsl.exe -d $Distribution -u root -- appsynergy-first-run $LinuxUser" }
         if ($supportedRelease) { $null = Invoke-WslChecked @('-d', $Distribution, '-u', 'root', '--', 'appsynergy-enable-channel') }
-        "Installed $Distribution. Activate the kernel explicitly before accepting the candidate."
+        "Installed $Distribution. Activate the kernel explicitly to use AppSynergy."
         return
     }
     if ($Operation -eq 'Activate') {

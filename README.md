@@ -5,20 +5,16 @@
 An Arch-based development environment for WSL2, using AppSynergy's CachyOS server
 kernel lineage, ThinLTO and x86-64-v3.
 
-**Pre-release. No supported release has passed Windows maintainer acceptance.**
-Linux builds and container tests cannot establish Windows compatibility. Candidates
-remain testing artifacts until the complete acceptance gate passes.
-
 [Compatibility](#compatibility) · [Installation](#installation) · [Updates](#updates) ·
 [Backup and recovery](#backup-and-recovery) · [Development](#development) ·
-[Maintainer acceptance](#maintainer-acceptance) · [Support](#support)
+[Windows validation](#windows-validation) · [Support](#support)
 
 ## Compatibility
 
 | Component | Target and validation boundary |
 | --- | --- |
 | Host | Windows 11 Enterprise x64, x86-64-v3 CPU; Enterprise policies must allow WSL and custom kernels |
-| Runtime | Store/MSI WSL 2.5.7+ with custom kernel/module VHD support; actual target version recorded during acceptance |
+| Runtime | Store/MSI WSL 2.5.7+ with custom kernel/module VHD support; target version recorded by the Windows validation harness |
 | Kernel | AppSynergy/CachyOS, ThinLTO; built-in boot storage, Hyper-V, vsock, 9P, VirtIO and OverlayFS |
 | Modules | ABI-matched ext4 VHDX; filesystem, image and module metadata checked during build |
 | Userspace | Signed Arch packages, systemd, bash, password-authenticated sudo, Git and development tools |
@@ -32,7 +28,7 @@ updates that source to 7.2.13 while preserving CachyOS changes. Both upstream ta
 are verified with the release maintainer's public key before build execution.
 The module image uses WSL's supported
 flat layout; announced removal of that layout requires a reviewed migration and
-fresh acceptance. GPU/USB guarantees, desktop sessions, ARM64, Windows 10, WSL1
+fresh Windows testing. GPU/USB guarantees, desktop sessions, ARM64, Windows 10, WSL1
 and Store registration are outside scope.
 
 ## Installation
@@ -52,17 +48,12 @@ default policy blocks script files, it asks before allowing scripts with
 `RemoteSigned` in the temporary child process only. It respects organizational
 policy and explicitly configured `AllSigned` restrictions.
 
-The bootstrap downloads the latest accepted release, verifies the signed manifest,
-acceptance promotion proof and installer hash, then downloads and verifies the
+The bootstrap downloads the latest release, verifies the signed manifest,
+release provenance and installer hash, then downloads and verifies the
 remaining artifacts. It asks for your Linux username and password. After installation,
 it asks whether to activate the AppSynergy kernel and shut down **all** your running
 WSL sessions. Answering no leaves activation pending; nothing activates in the background.
 Existing distributions are never overwritten.
-
-**Availability:** no accepted release is published yet. The command can install
-a supported distribution only after Windows acceptance and release publication.
-It never substitutes an unaccepted testing candidate. Use the maintainer acceptance
-harness below for the first Windows test.
 
 <details>
 <summary>First-time Windows setup: WSL prerequisites</summary>
@@ -83,7 +74,7 @@ the tools require WSL 2.5.7+, an x86-64-v3 CPU and 20 GiB free. Enterprise polic
 must permit the reviewed scripts, WSL and custom kernels. The installer does not
 change organizational policy or install another distribution as a prerequisite.
 
-For the first pre-release test, use [Maintainer acceptance](#maintainer-acceptance)
+For optional installation and recovery checks, use [Windows validation](#windows-validation)
 below. That path imports a clean, uniquely named test distribution and preserves
 existing distributions and their files.
 
@@ -96,13 +87,13 @@ AppLocker and WDAC policy remains unchanged. Missing Windows prerequisites still
 require the explicit setup in the expandable section above and any requested reboot.
 
 Advanced users can run `windows/Install.ps1` from reviewed source or release tools;
-it prompts interactively without required flags. `-Version` selects an accepted
+it prompts interactively without required flags. `-Version` selects a published
 release, and `-CandidateDirectory` explicitly selects extracted testing artifacts.
-The maintainer acceptance harness remains separate because it records interruption,
+The Windows validation harness remains separate because it records interruption,
 reboot and recovery tests in its own distribution.
 
-Staging verifies the signed manifest, artifact hashes and signed acceptance
-promotion proof. Installation refuses existing distribution names and prompts for
+Staging verifies the signed manifest, artifact hashes and signed release
+provenance. Installation refuses existing distribution names and prompts for
 a Linux password. Sudo requires that password. Resume interrupted setup with the
 same username:
 
@@ -125,7 +116,7 @@ sudo pacman -Syu
 ```
 
 Shared AppSynergy packages retain their existing signed origin. WSL integration
-uses its own signed channel, enabled by the Windows tool for accepted releases.
+uses its own signed channel, enabled by the Windows tool for published releases.
 For a Windows-side kernel update, use `Check`, `Stage` and `Activate` with the new
 version. Staging never activates automatically. New rootfs images serve installation
 and explicit recovery; they never overwrite installed user files. There is no
@@ -186,7 +177,7 @@ downloads the reviewed input in [kernel-artifact.lock.json](sources/kernel-artif
 verifies its archive and every file, checks the module certificate and WSL
 configuration, and proves its kernel inputs match the recorded source commit.
 It never starts another hosted compilation or substitutes a different kernel.
-These unsigned build inputs are testing components; they are not accepted product
+These unsigned build inputs are testing components; they are not product
 releases or independent build attestations. Release signing stays in separate jobs.
 
 After a source build, export its output against a full commit containing identical
@@ -225,7 +216,7 @@ cancelled or unexpectedly skipped required jobs. Signing uses isolated main-only
 environments. Dependencies, contributions and merges remain manual; there are no
 bots or scheduled workflows.
 
-## Maintainer acceptance
+## Windows validation
 
 Download the `candidate-SOURCE_SHA-ATTEMPT` artifact from the successful main run in
 [GitHub Actions](https://github.com/Appsynergy-io/appsynergy-wsl/actions/workflows/ci.yml).
@@ -245,7 +236,7 @@ Get-VerifiedManifest $candidate | Select-Object source, version, build
 ```
 
 This verifies the signed manifest and every artifact before installation. No
-accepted-release `Version` is needed for this first test. The harness creates
+release `Version` is needed for this test. The harness creates
 uniquely named distributions and owned directories; it installs no runner.
 `Start` imports the clean rootfs and prints its state directory. Assign that printed
 path to `$state` for subsequent phases. Use your GitHub handle:
@@ -270,18 +261,16 @@ checkpoint, reboot Windows yourself, then resume:
 
 `Finish` deliberately tests failed boot and rollback, affecting account-wide WSL
 sessions. Copy the resulting `acceptance.json` out before cleanup. Review and
-redact it, then submit an evidence-only PR under `acceptance/`, referencing the
-existing trusted-main candidate and changing no product inputs. Incomplete, stale
-or mismatched evidence is rejected. This is **maintainer acceptance**, not
-independent automated Windows attestation. Publication promotes the exact accepted
-bytes without rebuilding and records source and acceptance commits separately.
+redact it, then optionally submit a report under `acceptance/`, referencing the
+exact source and artifact hashes. These reports document maintainer testing; they
+do not gate installation or release. Publication copies signed CI artifacts without
+rebuilding them.
 
 ## Support
 
 Report reproducible issues through [GitHub Issues](https://github.com/Appsynergy-io/appsynergy-wsl/issues).
 Include the source revision, Windows build, WSL version, kernel identity and redacted
-diagnostics. Omit passwords, tokens and private host information. The project remains
-unsupported until Windows acceptance and release verification pass.
+diagnostics. Omit passwords, tokens and private host information.
 
 ## Sources and licenses
 
