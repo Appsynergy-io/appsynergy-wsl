@@ -49,6 +49,13 @@ class LocalCommandTests(unittest.TestCase):
                 self.assertEqual(result, 2)
             execution.assert_not_called()
 
+    def test_locked_kernel_uses_the_same_verifier_as_ci(self):
+        with patch("subprocess.run", side_effect=[subprocess.CompletedProcess([], 0),
+                                                subprocess.CompletedProcess([], 0)]) as execution:
+            result, _ = self.invoke(["build", "--component", "kernel", "--locked-artifact"])
+            self.assertEqual(result, 0)
+            self.assertIn("--locked-artifact", execution.call_args.args[0])
+
     def test_unavailable_archive_safety_feature_is_a_prerequisite_failure(self):
         with patch.dict(self.main.__globals__, {"tarfile": types.SimpleNamespace()}), patch("subprocess.run") as execution:
             result, output = self.invoke(["fast"])

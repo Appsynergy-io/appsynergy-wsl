@@ -16,12 +16,13 @@ from .evidence import digest, load_json, require
 from .inputs import CACHE, ROOT, prepare_sources
 
 
-def integration():
+def integration(output_directory=None):
     image = load_json(ROOT / "sources/package-builder.lock.json")["image"]
     version = os.environ.get("WSL_PACKAGE_VERSION", "0.1.0")
     require(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "package version")
-    output = CACHE / "integration" / (input_hash() + "-" + version)
+    output = Path(output_directory) if output_directory is not None else CACHE / "integration" / (input_hash() + "-" + version)
     output.mkdir(parents=True, exist_ok=True)
+    require(not list(output.glob("*.sig")), "integration output is already signed; preserve its bytes and use a fresh directory")
     name = "appsynergy-package-" + uuid.uuid4().hex
     with tempfile.TemporaryDirectory(prefix="wsl-integration-") as temp:
         work = Path(temp)
@@ -49,6 +50,10 @@ def integration():
             print(f"Unsigned integration package: {output / archives[0].name}")
         finally:
             subprocess.run(["docker", "rm", "-f", name], check=True, capture_output=True)
+    from .publication import build_database
+    with tempfile.TemporaryDirectory(prefix="wsl-package-database-check-") as temp:
+        build_database(archives[0], Path(temp), image)
+    print("PASS integration package and isolated repository database construction")
     return output
 
 

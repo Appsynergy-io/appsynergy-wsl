@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from wslbuild.candidate import REPOSITORY, acceptance, api, git
 from wslbuild.evidence import digest, load_json, require
 from wslbuild.inputs import ROOT
-from wslbuild.publication import publish
+from wslbuild.publication import build_database, publish
 
 
 class GitHubStore:
@@ -180,12 +180,9 @@ def main():
                     and proof['maintainer_acceptance_sha256'] == digest(report)
                     and proof['database_sha256'] == digest(public / 'appsynergy-wsl.db'), 'conflicting publication plan')
         else:
-            shutil.copyfile(packages[0], public / packages[0].name)
-        # Database construction has no signing credential and runs no package hooks.
-            subprocess.run(["docker", "run", "--rm", "--network=none", "--user", f"{os.getuid()}:{os.getgid()}", "--cap-drop=ALL",
-                        "--security-opt=no-new-privileges", "--mount", f"type=bind,src={public},dst=/output", image,
-                        "bash", "-c", "repo-add /output/appsynergy-wsl.db.tar.gz /output/*.pkg.tar.zst"], check=True, timeout=60)
-            shutil.copyfile(public / "appsynergy-wsl.db.tar.gz", public / "appsynergy-wsl.db")
+            # No credential enters the isolated metadata builder; package hooks
+            # are never executed. Discard repo-add's aliases and auxiliary files.
+            build_database(packages[0], public, image)
             proof = {"schema": 1, "version": manifest["version"], "source": manifest["source"], "acceptance_commit": acceptance_commit,
                  "database_sha256": digest(public / 'appsynergy-wsl.db'),
                  "manifest_sha256": digest(candidate / "manifest.json"), "maintainer_acceptance_sha256": digest(report)}
@@ -223,7 +220,7 @@ def main():
             require(store.asset_hash(release_id, plan.name) == digest(plan), 'publication plan upload mismatch')
         files = {p.name: p for p in candidate.iterdir() if p.is_file()}
         files[plan.name] = plan
-        files.update({p.name: p for p in public.iterdir() if p.is_file() and p.name != "appsynergy-wsl.db.tar.gz"})
+        files.update({name: public / name for name in metadata_names})
         require(sum(p.stat().st_size for p in files.values()) <= 8 * 1024**3, "release size limit")
         print(publish(store, manifest["version"], manifest["source"], acceptance_commit, files))
     return 0

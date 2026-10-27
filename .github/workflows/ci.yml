@@ -120,8 +120,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: kernel
-        name: Compile pinned AppSynergy kernel and matching module VHDX
-        run: python3 scripts/build-kernel
+        name: Verify pinned controlled-builder kernel and matching module VHDX
+        run: python3 scripts/build-kernel --locked-artifact
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kernel-files
@@ -129,10 +129,10 @@ jobs:
           if-no-files-found: error
 
   rootfs-build:
-    needs: [changes, gates, package-check, package-sign, test-package-sign]
+    needs: [changes, gates, package-check, package-sign, test-package-sign, kernel-build]
     if: >-
       always() && needs.changes.outputs.kind == 'product' && needs.gates.result == 'success' &&
-      needs.package-check.result == 'success' &&
+      needs.package-check.result == 'success' && needs.kernel-build.result == 'success' &&
       (needs.package-sign.result == 'success' || needs.test-package-sign.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
