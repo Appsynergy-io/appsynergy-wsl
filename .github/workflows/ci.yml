@@ -202,7 +202,10 @@ jobs:
 
   candidate-sign:
     needs: [changes, candidate-build]
-    if: needs.changes.outputs.kind == 'product' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      always() && !cancelled() && needs.changes.result == 'success' &&
+      needs.changes.outputs.kind == 'product' && needs.candidate-build.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: candidate-signing
     timeout-minutes: 5
