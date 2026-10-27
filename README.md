@@ -37,6 +37,27 @@ and Store registration are outside scope.
 
 ## Installation
 
+On a fresh Windows 11 host, install PowerShell 7.4+ and WSL before importing
+AppSynergy. If they are missing, run these explicit host setup commands in an
+administrator terminal approved by your organization:
+
+```powershell
+winget install --id Microsoft.PowerShell --exact --source winget
+wsl.exe --install --no-distribution
+```
+
+Microsoft documents [PowerShell installation](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
+and [WSL's no-distribution installation](https://learn.microsoft.com/en-us/windows/wsl/basic-commands).
+Restart Windows if WSL requests it. Then open **PowerShell 7 as your normal Windows
+account**. Existing WSL installations can proceed directly to the checks below;
+the tools require WSL 2.5.7+, an x86-64-v3 CPU and 20 GiB free. Enterprise policy
+must permit the reviewed scripts, WSL and custom kernels. The installer does not
+change organizational policy or install another distribution as a prerequisite.
+
+For the first pre-release test, use [Maintainer acceptance](#maintainer-acceptance)
+below. That path imports a clean, uniquely named test distribution and preserves
+existing distributions and their files.
+
 There is no supported download yet. These commands describe the implemented release
 interface and become usable after an accepted release is published. Run them in
 **PowerShell 7.4+ on Windows**, from the reviewed repository checkout. Choose the
@@ -129,7 +150,27 @@ python3 scripts/check gate
 python3 scripts/check gate --no-fail-fast
 python3 scripts/fetch-sources
 python3 scripts/check build --component kernel
+python3 scripts/check build --component kernel --locked-artifact
 ```
+
+Kernel compilation runs on the maintainer's controlled Linux builder. GitHub CI
+downloads the reviewed input in [kernel-artifact.lock.json](sources/kernel-artifact.lock.json),
+verifies its archive and every file, checks the module certificate and WSL
+configuration, and proves its kernel inputs match the recorded source commit.
+It never starts another hosted compilation or substitutes a different kernel.
+These unsigned build inputs are testing components; they are not accepted product
+releases or independent build attestations. Release signing stays in separate jobs.
+
+After a source build, export its output against a full commit containing identical
+kernel inputs. Substitute the actual directories and reviewed recipe commit:
+
+```bash
+python3 -m wslbuild.kernel_artifact export --directory /path/to/kernel-output --output /path/to/empty-export-directory --recipe-commit FULL_COMMIT_SHA
+```
+
+Review the generated lock and upload the exact archive to its pinned testing-input
+URL before submitting the change. A kernel input change requires a new controlled
+build and reviewed lock. Build caches and private module keys remain on the builder.
 
 `fast` classifies changes and names omitted checks; uncertain history selects full
 cheap validation. `gate` runs applicable automated checks in cost order. Diagnostic
@@ -158,16 +199,37 @@ bots or scheduled workflows.
 
 ## Maintainer acceptance
 
-Use a signed candidate from a successful trusted-main build. The harness creates
+Download the `candidate-SOURCE_SHA-ATTEMPT` artifact from the successful main run in
+[GitHub Actions](https://github.com/Appsynergy-io/appsynergy-wsl/actions/workflows/ci.yml).
+The maintainer handoff identifies the exact run, artifact and source commit. Extract
+the candidate ZIP into a new folder. Separately download and extract the repository
+source ZIP for that same commit; run the following commands from its root. Git and
+the GitHub CLI are not required on Windows. GitHub may require your signed-in
+maintainer account to download the Actions artifact.
+
+Use the reviewed source's verification tools and public key before importing:
+
+```powershell
+$candidate = (Resolve-Path 'C:\path\to\extracted-candidate').Path
+.\windows\AppSynergy.ps1 -Operation Status
+Import-Module .\windows\AppSynergy.psm1 -Force
+Get-VerifiedManifest $candidate | Select-Object source, version, build
+```
+
+This verifies the signed manifest and every artifact before installation. No
+accepted-release `Version` is needed for this first test. The harness creates
 uniquely named distributions and owned directories; it installs no runner.
-Set `$candidate` to the extracted candidate directory. `Start` prints a state
-directory; assign it to `$state` for subsequent phases. Use your GitHub handle:
+`Start` imports the clean rootfs and prints its state directory. Assign that printed
+path to `$state` for subsequent phases. Use your GitHub handle:
 
 ```powershell
 .\windows\Acceptance.ps1 -Phase Start -CandidateDirectory $candidate -Maintainer YourGitHubHandle
 .\windows\Acceptance.ps1 -Phase Setup -StateDirectory $state -AllowShutdown
 ```
 
+Save the printed state directory before restarting Windows; set `$state` to that
+same path in the new PowerShell session. The progress journal persists there.
+`Setup` creates the normal Linux user `acceptance` and prompts for its password.
 Interrupt the first password prompt as instructed, then rerun `Setup` with the
 same state directory. Complete the retry and interactive sudo check. At the reboot
 checkpoint, reboot Windows yourself, then resume:

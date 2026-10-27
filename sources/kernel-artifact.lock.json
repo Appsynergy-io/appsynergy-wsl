@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "inputs_sha256": "a2f19b46888224090eeeed3f1e07057822425d4e13ac9cac653e3f46a6311081",
+  "recipe_commit": "007ce42e84c3dc2adee27eefa83df90116c139b4",
+  "artifact": {
+    "url": "https://github.com/Appsynergy-io/appsynergy-wsl/releases/download/kernel-build-a2f19b46888224090eeeed3f1e07057822425d4e13ac9cac653e3f46a6311081/kernel-a2f19b46888224090eeeed3f1e07057822425d4e13ac9cac653e3f46a6311081.tar.gz",
+    "sha256": "c573db641c5b29b0ade3f3b82f553ce9a969364aa9483095aa4faf460d749c49",
+    "size": 202224760,
+    "receipt_sha256": "5449290fa089a0e2aaeb586edb5f4811dc65adc6828c6ce42dab05e6e3cda85b"
+  }
+}

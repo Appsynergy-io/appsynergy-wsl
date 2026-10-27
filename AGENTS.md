@@ -5,6 +5,7 @@
 - `python3 scripts/check gate` runs the complete implemented gate; Docker is required.
 - `python3 scripts/check gate --no-fail-fast` collects failures for diagnosis.
 - `python3 scripts/check build --component kernel` gates, then compiles the pinned kernel and module VHDX.
+- `python3 scripts/check build --component kernel --locked-artifact` gates, then verifies the exact controlled-builder input used by CI.
 - `python3 -m wslbuild.rootfs integration` builds the unsigned integration package.
 - `python3 scripts/check build --component rootfs --signed-package DIRECTORY` gates, then builds with a separately signed package.
 - `python3 scripts/check gate --rootfs DIRECTORY` also exercises the candidate archive and real interrupted first-run setup.
@@ -21,10 +22,13 @@
 - Retain ThinLTO, x86-64-v3 and inherited AppSynergy/CachyOS source provenance.
 - Preserve `kernel/stable.lock.json` signed ancestry and the reviewed adaptation patch; verify both upstream tags before compilation. Never mark an old-version advisory match closed from a renamed kernel release alone.
 - Keep versioned WSL adaptation in `kernel/wsl.config`; do not modify appsynergy-linux product or CI contracts.
+- Update `sources/kernel-artifact.lock.json` only after exporting a verified controlled-builder kernel. CI never compiles a replacement or falls back to different inputs.
 - Use Conventional Commits. Reject native CI-skip tokens in both subjects and bodies.
 
 # Workflow
 
+- Use completion hooks when waiting for builds or other work; do not poll.
+- Keep inspection scoped to this project.
 - Commit, push, open a PR, merge or release only when scoped work meets its specification and every required check passes. If a check fails or did not run, do not ship; report the unmet work.
 - Keep all CI in `.github/workflows/ci.yml`; only pull_request, push to main and merge_group are allowed.
 - Add real job dependencies before expensive work. Keep `ci-ok` strict about missing and unexpected skips.

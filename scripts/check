@@ -27,9 +27,12 @@ def main():
     parser.add_argument("--no-fail-fast", action="store_true", help="collect cheap check failures")
     parser.add_argument("--component", choices=["all", "kernel", "rootfs"], default="all")
     parser.add_argument("--signed-package", help="separately signed integration package directory; build mode only")
+    parser.add_argument("--locked-artifact", action="store_true", help="build: verify the reviewed kernel artifact instead of compiling")
     parser.add_argument("--rootfs", help="gate: directory containing the candidate rootfs for real runtime checks")
     parser.add_argument("--stage", choices=["gates", "package", "rootfs"], help="CI split; uses identical local stages")
     args = parser.parse_args()
+    if args.locked_artifact and (args.mode != "build" or args.component == "rootfs"):
+        parser.error("--locked-artifact requires build mode and a kernel component")
     if args.signed_package and args.mode != "build":
         parser.error("--signed-package requires build mode")
     if args.component != "all" and args.mode != "build":
@@ -57,7 +60,7 @@ def main():
             return gate.returncode
         commands = []
         if args.component in {"all", "kernel"}:
-            commands.append([sys.executable, "scripts/build-kernel"])
+            commands.append([sys.executable, "scripts/build-kernel"] + (["--locked-artifact"] if args.locked_artifact else []))
         if args.component in {"all", "rootfs"}:
             commands.append([sys.executable, "-m", "wslbuild.rootfs", "rootfs", "--signed-package", str(Path(args.signed_package).resolve())])
         for command in commands:

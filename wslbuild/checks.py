@@ -25,6 +25,8 @@ def source_checks():
             if path.suffix == ".py" or (first.startswith("#!") and "python" in first):
                 ast.parse(path.read_text(), filename=str(path.relative_to(ROOT)), feature_version=(3, 11))
     validate_lock(load_json(ROOT / "sources/inputs.lock.json"))
+    from .kernel_artifact import validate_lock as validate_kernel_artifact_lock
+    validate_kernel_artifact_lock(load_json(ROOT / "sources/kernel-artifact.lock.json"))
     from .stable import verify_metadata
     verify_metadata()
     lines = (ROOT / "kernel/wsl.config").read_text().splitlines()
