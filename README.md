@@ -37,6 +37,28 @@ and Store registration are outside scope.
 
 ## Installation
 
+On Windows 11, in **PowerShell 7.4+**, paste this single command. No checkout, manual download,
+extraction or command-line options are needed:
+
+```powershell
+irm https://raw.githubusercontent.com/Appsynergy-io/appsynergy-wsl/main/windows/bootstrap.ps1 | iex
+```
+
+The bootstrap downloads the latest accepted release, verifies the signed manifest,
+acceptance promotion proof and installer hash, then downloads and verifies the
+remaining artifacts. It asks for your Linux username and password. After installation,
+it asks whether to activate the AppSynergy kernel and shut down **all** your running
+WSL sessions. Answering no leaves activation pending; nothing activates in the background.
+Existing distributions are never overwritten.
+
+**Availability:** no accepted release is published yet. The command can install
+a supported distribution only after Windows acceptance and release publication.
+It never substitutes an unaccepted testing candidate. Use the maintainer acceptance
+harness below for the first Windows test.
+
+<details>
+<summary>First-time Windows setup: PowerShell and WSL prerequisites</summary>
+
 On a fresh Windows 11 host, install PowerShell 7.4+ and WSL before importing
 AppSynergy. If they are missing, run these explicit host setup commands in an
 administrator terminal approved by your organization:
@@ -58,20 +80,19 @@ For the first pre-release test, use [Maintainer acceptance](#maintainer-acceptan
 below. That path imports a clean, uniquely named test distribution and preserves
 existing distributions and their files.
 
-There is no supported download yet. These commands describe the implemented release
-interface and become usable after an accepted release is published. Run them in
-**PowerShell 7.4+ on Windows**, from the reviewed repository checkout. Choose the
-version reported by `Check`.
-Use your organization's approved PowerShell policy; the tools do not change
-execution policy, AppLocker or WDAC settings.
+</details>
 
-```powershell
-.\windows\AppSynergy.ps1 -Operation Status
-.\windows\AppSynergy.ps1 -Operation Check
-.\windows\AppSynergy.ps1 -Operation Stage -Version 0.1.0
-.\windows\AppSynergy.ps1 -Operation Install -Version 0.1.0 -Distribution AppSynergy -LinuxUser developer
-.\windows\AppSynergy.ps1 -Operation Activate -Version 0.1.0 -Distribution AppSynergy -AllowShutdown
-```
+The initial script is trusted through this repository's HTTPS URL; subsequently
+executed tools are hash-verified against signed release metadata. For review before
+execution, inspect [bootstrap.ps1](windows/bootstrap.ps1). Organizational PowerShell,
+AppLocker and WDAC policy remains unchanged. Missing Windows prerequisites still
+require the explicit setup in the expandable section above and any requested reboot.
+
+Advanced users can run `windows/Install.ps1` from reviewed source or release tools;
+it prompts interactively without required flags. `-Version` selects an accepted
+release, and `-CandidateDirectory` explicitly selects extracted testing artifacts.
+The maintainer acceptance harness remains separate because it records interruption,
+reboot and recovery tests in its own distribution.
 
 Staging verifies the signed manifest, artifact hashes and signed acceptance
 promotion proof. Installation refuses existing distribution names and prompts for
@@ -83,8 +104,8 @@ wsl.exe -d AppSynergy -u root -- appsynergy-first-run developer
 ```
 
 **Kernel selection affects all WSL2 distributions for your Windows account.**
-Activation requires explicit `-AllowShutdown`, preserves the previous kernel/module
-pair and unrelated `.wslconfig` settings, then checks health. Failure restores the
+The installer asks for activation consent; advanced commands require explicit
+`-AllowShutdown`. Activation preserves the previous kernel/module pair and unrelated `.wslconfig` settings, then checks health. Failure restores the
 previous configuration. The tools do not modify partitions or bootloaders.
 Administrative prerequisite changes remain explicit host setup.
 
