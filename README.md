@@ -37,12 +37,20 @@ and Store registration are outside scope.
 
 ## Installation
 
-On Windows 11, in **PowerShell 7.4+**, paste this single command. No checkout, manual download,
+On Windows 11, open **Windows PowerShell** and paste this single command. No checkout, manual download,
 extraction or command-line options are needed:
 
 ```powershell
 irm https://raw.githubusercontent.com/Appsynergy-io/appsynergy-wsl/main/windows/bootstrap.ps1 | iex
 ```
+
+Windows PowerShell 5.1 is supported as the entry shell. When needed, the bootstrap
+downloads a pinned private PowerShell 7 runtime, verifies its hash and Microsoft
+signature, continues automatically, and removes that runtime afterward. It does
+not replace Windows PowerShell or change permanent execution policy. If Windows'
+default policy blocks script files, it asks before allowing scripts with
+`RemoteSigned` in the temporary child process only. It respects organizational
+policy and explicitly configured `AllSigned` restrictions.
 
 The bootstrap downloads the latest accepted release, verifies the signed manifest,
 acceptance promotion proof and installer hash, then downloads and verifies the
@@ -57,20 +65,19 @@ It never substitutes an unaccepted testing candidate. Use the maintainer accepta
 harness below for the first Windows test.
 
 <details>
-<summary>First-time Windows setup: PowerShell and WSL prerequisites</summary>
+<summary>First-time Windows setup: WSL prerequisites</summary>
 
-On a fresh Windows 11 host, install PowerShell 7.4+ and WSL before importing
-AppSynergy. If they are missing, run these explicit host setup commands in an
+On a fresh Windows 11 host, WSL must be enabled before importing AppSynergy.
+If it is missing, run this explicit host setup command in an
 administrator terminal approved by your organization:
 
 ```powershell
-winget install --id Microsoft.PowerShell --exact --source winget
 wsl.exe --install --no-distribution
 ```
 
 Microsoft documents [PowerShell installation](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
 and [WSL's no-distribution installation](https://learn.microsoft.com/en-us/windows/wsl/basic-commands).
-Restart Windows if WSL requests it. Then open **PowerShell 7 as your normal Windows
+Restart Windows if WSL requests it. Then open **Windows PowerShell as your normal Windows
 account**. Existing WSL installations can proceed directly to the checks below;
 the tools require WSL 2.5.7+, an x86-64-v3 CPU and 20 GiB free. Enterprise policy
 must permit the reviewed scripts, WSL and custom kernels. The installer does not
