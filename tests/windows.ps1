@@ -72,6 +72,27 @@ if ($Operation -eq 'Activate' -and -not $AllowShutdown) { throw 'Missing explici
     # Exercise the real bootstrap archive verifier without network or Windows side effects.
     $bootstrapText = Get-Content -Raw (Join-Path $PSScriptRoot '../windows/bootstrap.ps1')
     $bootstrapAst = [Management.Automation.Language.Parser]::ParseInput($bootstrapText, [ref]$null, [ref]$null)
+    $policyFunction = $bootstrapAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-BootstrapPolicyAction' }, $true)
+    . ([scriptblock]::Create($policyFunction.Extent.Text))
+    Assert-True ((Get-BootstrapPolicyAction Restricted Undefined Undefined) -eq 'Consent') 'default Windows policy requires explicit process-only consent'
+    Assert-True ((Get-BootstrapPolicyAction Restricted Restricted Undefined) -eq 'Blocked') 'machine policy cannot be overridden'
+    Assert-True ((Get-BootstrapPolicyAction Restricted Undefined Restricted) -eq 'Blocked') 'user group policy cannot be overridden'
+    Assert-True ((Get-BootstrapPolicyAction AllSigned Undefined Undefined) -eq 'Blocked') 'explicit signature-only restriction preserved'
+    Assert-True ((Get-BootstrapPolicyAction RemoteSigned Undefined Undefined) -eq 'Continue') 'permitted scripts need no policy change'
+    $runtimeFunction = $bootstrapAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Expand-BootstrapRuntime' }, $true)
+    . ([scriptblock]::Create($runtimeFunction.Extent.Text))
+    $runtimeZip = Join-Path $testDirectory 'runtime-fixture.zip'
+    $zip = [IO.Compression.ZipFile]::Open($runtimeZip, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $writer = [IO.StreamWriter]::new($zip.CreateEntry('pwsh.exe').Open())
+        try { $writer.Write('fixture - never executed') } finally { $writer.Dispose() }
+    } finally { $zip.Dispose() }
+    Expand-BootstrapRuntime $runtimeZip (Join-Path $testDirectory 'runtime-safe')
+    Assert-True (Test-Path (Join-Path $testDirectory 'runtime-safe/pwsh.exe')) 'runtime archive extracted'
+    $zip = [IO.Compression.ZipFile]::Open($runtimeZip, [IO.Compression.ZipArchiveMode]::Update)
+    try { $null = $zip.CreateEntry('../escape.dll') } finally { $zip.Dispose() }
+    Assert-Throw { Expand-BootstrapRuntime $runtimeZip (Join-Path $testDirectory 'runtime-unsafe') } 'runtime traversal rejected before extraction'
+    Assert-True (-not (Test-Path (Join-Path $testDirectory 'runtime-unsafe'))) 'unsafe runtime leaves no extraction directory'
     $expandFunction = $bootstrapAst.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Expand-VerifiedToolArchive' }, $true)
     . ([scriptblock]::Create($expandFunction.Extent.Text))
     $zipPath = Join-Path $testDirectory 'tools-fixture.zip'

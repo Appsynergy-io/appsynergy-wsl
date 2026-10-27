@@ -1,10 +1,113 @@
-# Run from PowerShell 7.4+: irm https://raw.githubusercontent.com/Appsynergy-io/appsynergy-wsl/main/windows/bootstrap.ps1 | iex
+# Run from Windows PowerShell 5.1 or PowerShell 7.4+: irm https://raw.githubusercontent.com/Appsynergy-io/appsynergy-wsl/main/windows/bootstrap.ps1 | iex
 # Scope the bootstrap so it does not change the caller's preferences or functions.
 & {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
-    if ($PSVersionTable.PSVersion -lt [version]'7.4' -or [Environment]::OSVersion.Platform -ne 'Win32NT') {
-        throw 'Open PowerShell 7.4+ on Windows 11 and run the same installation command. Windows prerequisites are documented in README.md.'
+    if ([Environment]::OSVersion.Platform -ne 'Win32NT' -or -not [Environment]::Is64BitProcess) {
+        throw 'Run this command in 64-bit Windows PowerShell on Windows 11 x64.'
+    }
+
+    # This entry path deliberately uses Windows PowerShell 5.1/.NET Framework APIs.
+    # The modern verifier below runs only after handoff to the private runtime.
+    function Expand-BootstrapRuntime {
+        param([string]$Archive, [string]$Destination)
+        $zip = [IO.Compression.ZipFile]::OpenRead($Archive)
+        try {
+            $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            $total = 0L
+            if ($zip.Entries.Count -gt 10000) { throw 'Runtime archive entry limit exceeded' }
+            foreach ($entry in $zip.Entries) {
+                $name = $entry.FullName.TrimEnd('/')
+                $total += $entry.Length
+                if (-not $name -or $name -match '[\\:<>"|?*]' -or $name.StartsWith('/') -or
+                    @($name.Split('/') | Where-Object { $_ -in @('', '.', '..') -or $_.EndsWith('.') -or $_.EndsWith(' ') }).Count -gt 0 -or
+                    -not $names.Add($name) -or $total -gt 1GB -or
+                    (($entry.ExternalAttributes -shr 16) -band 61440) -eq 40960) {
+                    throw 'Unsafe runtime archive contents'
+                }
+            }
+            if (-not $names.Contains('pwsh.exe')) { throw 'Runtime executable is missing' }
+        } finally { $zip.Dispose() }
+        [IO.Compression.ZipFile]::ExtractToDirectory($Archive, $Destination)
+    }
+
+    function Invoke-BootstrapRuntime {
+        param([string]$Body, [switch]$AllowProcessScripts)
+        Add-Type -AssemblyName System.Net.Http
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $directory = Join-Path ([IO.Path]::GetTempPath()) "appsynergy-runtime-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item -ItemType Directory -Path $directory
+        $client = [Net.Http.HttpClient]::new()
+        $cancel = [Threading.CancellationTokenSource]::new([TimeSpan]::FromMinutes(10))
+        $response = $null
+        $output = $null
+        try {
+            Write-Output 'Preparing a verified private PowerShell runtime. Your installed PowerShell and permanent execution policy will not change.'
+            $uri = 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.22/PowerShell-7.4.22-win-x64.zip'
+            $response = $client.GetAsync($uri, [Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancel.Token).GetAwaiter().GetResult()
+            $null = $response.EnsureSuccessStatusCode()
+            if ($response.RequestMessage.RequestUri.Scheme -ne 'https' -or $response.Content.Headers.ContentLength -gt 128MB) { throw 'Invalid runtime download' }
+            $archive = Join-Path $directory 'runtime.zip'
+            $output = [IO.File]::Open($archive, [IO.FileMode]::CreateNew)
+            $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+            $buffer = New-Object byte[] 65536
+            $total = 0L
+            while (($count = $inputStream.ReadAsync($buffer, 0, $buffer.Length, $cancel.Token).GetAwaiter().GetResult()) -gt 0) {
+                $total += $count
+                if ($total -gt 128MB) { throw 'Runtime download size limit exceeded' }
+                $output.Write($buffer, 0, $count)
+            }
+            $output.Dispose()
+            $output = $null
+            if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine '5f89f51860a1a3b07937945663afd7cbd44387361ff9985f5758939cb9bd6359') {
+                throw 'PowerShell runtime hash verification failed'
+            }
+            $runtime = Join-Path $directory 'runtime'
+            Expand-BootstrapRuntime $archive $runtime
+            $executable = Join-Path $runtime 'pwsh.exe'
+            $signature = Get-AuthenticodeSignature -LiteralPath $executable
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(?:^|, )O=Microsoft Corporation(?:,|$)') {
+                throw 'PowerShell runtime Microsoft signature verification failed'
+            }
+            $scriptPath = Join-Path $directory 'bootstrap.ps1'
+            [IO.File]::WriteAllText($scriptPath, "& {`n$Body`n}", [Text.UTF8Encoding]::new($false))
+            # Continue the exact already-invoked script, without fetching mutable code
+            # again or passing an oversized encoded command. Keep interactive stdin.
+            $quotedPath = $scriptPath.Replace("'", "''")
+            $runtimeArguments = @('-NoLogo', '-NoProfile')
+            if ($AllowProcessScripts) { $runtimeArguments += @('-ExecutionPolicy', 'RemoteSigned') }
+            & $executable @runtimeArguments -Command "& ([scriptblock]::Create([IO.File]::ReadAllText('$quotedPath')))"
+            if ($LASTEXITCODE -ne 0) { throw "Installer stopped with exit code $LASTEXITCODE" }
+        } finally {
+            if ($null -ne $output) { $output.Dispose() }
+            if ($null -ne $response) { $response.Dispose() }
+            $cancel.Dispose()
+            $client.Dispose()
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
+    }
+
+    function Get-BootstrapPolicyAction {
+        param([string]$Effective, [string]$Machine, [string]$User)
+        if ($Effective -eq 'AllSigned' -or ($Effective -eq 'Restricted' -and
+            ($Machine -ne 'Undefined' -or $User -ne 'Undefined'))) { return 'Blocked' }
+        if ($Effective -eq 'Restricted') { return 'Consent' }
+        return 'Continue'
+    }
+
+    $allowProcessScripts = $false
+    $policyAction = Get-BootstrapPolicyAction (Get-ExecutionPolicy) (Get-ExecutionPolicy -Scope MachinePolicy) (Get-ExecutionPolicy -Scope UserPolicy)
+    if ($policyAction -eq 'Blocked') {
+        throw 'Your configured execution policy does not permit these installer scripts. Ask your administrator to approve deployment; the installer will not override this policy.'
+    }
+    if ($policyAction -eq 'Consent') {
+        $consent = Read-Host 'Windows blocks script files by default. Allow verified installer scripts in a temporary child process only (RemoteSigned)? No permanent policy change. [y/N]'
+        if ($consent -inotmatch '^(y|yes)$') { Write-Output 'Installation cancelled; no settings changed.'; return }
+        $allowProcessScripts = $true
+    }
+    if ($PSVersionTable.PSVersion -lt [version]'7.4' -or $allowProcessScripts) {
+        Invoke-BootstrapRuntime -Body $MyInvocation.MyCommand.ScriptBlock.ToString() -AllowProcessScripts:$allowProcessScripts
+        return
     }
 
     function Receive-BootstrapVerifier {

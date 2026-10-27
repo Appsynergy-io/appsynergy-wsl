@@ -13,6 +13,10 @@ foreach ($rule in $rules) {
     $findings += @(Invoke-ScriptAnalyzer -Path (Join-Path $PSScriptRoot '../windows') -Recurse -Severity Warning,Error -IncludeRule $rule.RuleName)
     $findings += @(Invoke-ScriptAnalyzer -Path (Join-Path $PSScriptRoot '../tests/windows.ps1') -Severity Warning,Error -IncludeRule $rule.RuleName)
 }
+$findings += @(Invoke-ScriptAnalyzer -Path (Join-Path $PSScriptRoot '../windows/bootstrap.ps1') -Settings @{
+    IncludeRules = @('PSUseCompatibleSyntax')
+    Rules = @{ PSUseCompatibleSyntax = @{ Enable = $true; TargetVersions = @('5.1', '7.4') } }
+})
 if ($findings.Count -gt 0) {
     $findings | Format-Table -AutoSize
     exit 1
