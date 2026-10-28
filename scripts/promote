@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Release only an available, unchanged, signed, validated trusted-main candidate."""
 import json
+import http.client
 import os
 import re
 import subprocess
@@ -36,23 +37,51 @@ class GitHubStore:
         require(re.fullmatch(r"appsynergy-wsl-v\d+\.\d+\.\d+", release["tag_name"]), "unexpected latest release tag")
         return release["tag_name"].removeprefix("appsynergy-wsl-v")
 
+    def find_release(self, tag):
+        release = self.optional(f"repos/{REPOSITORY}/releases/tags/{tag}")
+        if release is not None:
+            return release
+        # GitHub's tag endpoint can omit drafts even for the creating token.
+        # Authenticated release listing includes drafts and gives their stable ID.
+        for page in range(1, 11):
+            releases = api(f"repos/{REPOSITORY}/releases?per_page=100&page={page}")
+            matches = [item for item in releases if item["tag_name"] == tag]
+            require(len(matches) <= 1, "duplicate release tag")
+            if matches:
+                return matches[0]
+            if len(releases) < 100:
+                return None
+        raise ValueError("release history exceeds lookup limit")
+
     def ensure_release(self, tag, source, publication_commit):
+        notes = (f"AppSynergy WSL {tag.removeprefix('appsynergy-wsl-v')}\n\nSource: `{source}`.\n"
+                 f"Publication commit: `{publication_commit}`.\n\n"
+                 "Published from the exact signed CI artifacts without rebuilding. Windows 11 Enterprise x64 / WSL2 / x86-64-v3.\n"
+                 "See the signed manifest and promotion.json for provenance. Windows validation is maintainer-run and is not claimed by CI.\n")
         ref = self.optional(f"repos/{REPOSITORY}/git/ref/tags/{tag}")
         if ref:
             obj = ref["object"]
             if obj["type"] == "tag":
                 obj = api(f"repos/{REPOSITORY}/git/tags/{obj['sha']}")["object"]
             require(obj["type"] == "commit" and obj["sha"] == source, "conflicting source tag")
-        release = self.optional(f"repos/{REPOSITORY}/releases/tags/{tag}")
-        if release and ref is None:
-            require(release['target_commitish'] == source, 'conflicting draft source')
+        release = self.find_release(tag)
+        if release and ref is None and release['target_commitish'] != source:
+            # Only an empty, unpublished draft can move to a corrected build.
+            # Once any bytes or tag exist, their source is immutable.
+            require(release['draft'] and not release['assets'], 'conflicting draft source')
+            response = subprocess.run(["gh", "api", "--method", "PATCH",
+                                       f"repos/{REPOSITORY}/releases/{release['id']}", "--input", "-"],
+                                      input=json.dumps({"target_commitish": source, "body": notes}), text=True,
+                                      capture_output=True, check=True, timeout=60)
+            release = json.loads(response.stdout)
         if release is None:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".md") as notes:
-                notes.write(f"AppSynergy WSL {tag.removeprefix('appsynergy-wsl-v')}\n\nSource: `{source}`.\nPublication commit: `{publication_commit}`.\n\nPublished from the exact signed CI artifacts without rebuilding. Windows 11 Enterprise x64 / WSL2 / x86-64-v3.\nSee the signed manifest and promotion.json for provenance. Windows validation is maintainer-run and is not claimed by CI.\n")
-                notes.flush()
-                subprocess.run(["gh", "release", "create", tag, "--repo", REPOSITORY, "--target", source, "--draft",
-                                "--title", tag, "--notes-file", notes.name], check=True, timeout=60)
-            release = api(f"repos/{REPOSITORY}/releases/tags/{tag}")
+            response = subprocess.run(["gh", "api", "--method", "POST", f"repos/{REPOSITORY}/releases", "--input", "-"],
+                                      input=json.dumps({"tag_name": tag, "target_commitish": source, "draft": True,
+                                                        "name": tag, "body": notes}), text=True,
+                                      capture_output=True, check=True, timeout=60)
+            release = json.loads(response.stdout)
+        require(release['tag_name'] == tag and (ref is not None or release['target_commitish'] == source),
+                'release response source mismatch')
         self.tags[release["id"]] = tag
         return release["id"]
 
@@ -64,16 +93,42 @@ class GitHubStore:
         require(len(matches) <= 1, "duplicate release asset")
         if not matches:
             return None
+        if matches[0].get("state") == "starter" and matches[0].get("size") == 0:
+            # GitHub documents these empty remnants after failed uploads as safe
+            # to delete. Never replace completed or nonempty immutable assets.
+            subprocess.run(["gh", "api", "--method", "DELETE",
+                            f"repos/{REPOSITORY}/releases/assets/{matches[0]['id']}"], check=True, timeout=60)
+            return None
         value = matches[0].get("digest") or ""
         require(re.fullmatch(r"sha256:[0-9a-f]{64}", value), "release asset has no verifiable digest")
         return value.removeprefix("sha256:")
 
     def upload(self, release, name, path):
-        require(Path(path).name == name, "upload filename mismatch")
-        subprocess.run(["gh", "release", "upload", self.tags[release], str(path), "--repo", REPOSITORY], check=True, timeout=300)
+        path = Path(path)
+        require(path.name == name and path.is_file() and not path.is_symlink(), "upload filename mismatch")
+        expected_url = f"https://uploads.github.com/repos/{REPOSITORY}/releases/{release}/assets"
+        actual_url = api(f"repos/{REPOSITORY}/releases/{release}")["upload_url"].split("{", 1)[0]
+        require(actual_url.lower() == expected_url.lower(), "unexpected asset upload origin")
+        connection = http.client.HTTPSConnection("uploads.github.com", timeout=300)
+        try:
+            with path.open("rb") as stream:
+                connection.request("POST", f"/repos/{REPOSITORY}/releases/{release}/assets?name={quote(name)}",
+                                   body=stream, headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                                   "Accept": "application/vnd.github+json", "User-Agent": "AppSynergy-WSL-release",
+                                   "Content-Type": "application/octet-stream", "Content-Length": str(path.stat().st_size)})
+                response = connection.getresponse()
+                data = response.read(1024**2 + 1)
+            require(response.status == 201 and len(data) <= 1024**2, f"release upload failed: HTTP {response.status}")
+            asset = json.loads(data)
+            require(asset["name"] == name and asset["size"] == path.stat().st_size
+                    and asset.get("digest") == "sha256:" + digest(path), "uploaded asset response mismatch")
+        finally:
+            connection.close()
 
     def download_plan(self, release, output):
         name = 'publication-plan.zip'
+        if self.asset_hash(release, name) is None:
+            return False
         assets = [a for a in self.assets(release) if a['name'] == name]
         if not assets:
             return False
@@ -124,11 +179,12 @@ class GitHubStore:
             require(self.public_hash(tag, name) == digest(files[name]), "public channel package mismatch")
         for name in ("appsynergy-wsl.db", "appsynergy-wsl.db.sig"):
             expected = digest(files[name])
-            matches = [a for a in self.assets(release_id) if a["name"] == name]
-            if matches and self.asset_hash(release_id, name) != expected:
+            current = self.asset_hash(release_id, name)
+            if current is not None and current != expected:
+                matches = [a for a in self.assets(release_id) if a['name'] == name]
+                require(len(matches) == 1, "channel database disappeared")
                 subprocess.run(["gh", "api", "--method", "DELETE", f"repos/{REPOSITORY}/releases/assets/{matches[0]['id']}"], check=True, timeout=60)
-                matches = []
-            if not matches:
+            if current != expected:
                 self.upload(release_id, name, files[name])
             require(self.public_hash(tag, name) == expected, "public channel database mismatch")
 
