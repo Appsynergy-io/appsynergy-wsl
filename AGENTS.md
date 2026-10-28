@@ -46,7 +46,7 @@
 - `wslbuild/evidence.py` validates structure and bytes; callers must independently authenticate the manifest and trusted build metadata. It is not a signature verifier or attestation service.
 - Never manufacture trusted-main metadata for local candidates. Acceptance must authenticate the GitHub run and exact signed artifacts.
 - WSL uses OverlayFS before module mounting: keep CONFIG_OVERLAY_FS=y. A module cannot bootstrap its own VHD.
-- The flat module VHD layout is supported but deprecated upstream; review runtime changes and reaccept before supporting its removal.
+- The flat module VHD layout is supported but deprecated upstream; review runtime changes and retest compatibility before supporting its removal.
 - `.cache` contains reusable tools, downloads and logs; never include it in rootfs or release artifacts.
 - Keep the public bootstrap compatible with stock Windows PowerShell 5.1 and flag-free; authenticate downloaded tools before execution and prompt before account-wide kernel activation.
 - First-run passwords belong only to interactive `passwd`; never put them in manifests, logs, CLI arguments or source.

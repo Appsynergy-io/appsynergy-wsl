@@ -18,7 +18,7 @@ kernel lineage, ThinLTO and x86-64-v3.
 | Kernel | AppSynergy/CachyOS, ThinLTO; built-in boot storage, Hyper-V, vsock, 9P, VirtIO and OverlayFS |
 | Modules | ABI-matched ext4 VHDX; filesystem, image and module metadata checked during build |
 | Userspace | Signed Arch packages, systemd, bash, password-authenticated sudo, Git and development tools |
-| Windows validation | Boot, interoperability, shutdown, reboot, backup/import and failed-boot rollback remain required |
+| Windows validation | Optional harness covers boot, interoperability, shutdown, reboot, backup/import and failed-boot rollback |
 
 The [kernel contract](kernel/wsl2-contract.json) records configuration requirements
 and pinned Microsoft compatibility references. Microsoft source or binaries are
