@@ -46,9 +46,11 @@ def main():
     except (KeyError, OSError, ValueError):
         paths, uncertain = set(), True
     kind = classify(paths, uncertain)
+    from .candidate import version_at
+    release = kind == "product" and version_at("HEAD") is not None
     print(json.dumps({"kind": kind, "uncertain": uncertain, "paths": sorted(paths)}))
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
-        stream.write(f"kind={kind}\n")
+        stream.write(f"kind={kind}\nrelease={str(release).lower()}\n")
 
 
 if __name__ == "__main__":

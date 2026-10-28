@@ -137,7 +137,7 @@ def assemble(kernel_directory, rootfs_directory, package_directory, output):
         require(re.fullmatch(r"appsynergy-wsl-integration-[0-9.]+-\d+-any\.pkg\.tar\.zst(?:\.sig)?", package.name), "package filename")
         shutil.copyfile(package, output / package.name)
     (output / "SHA256SUMS").write_text("".join(f"{digest(p)}  {p.name}\n" for p in sorted(output.iterdir()) if p.is_file()))
-    print(f"Candidate {version} assembled without release signing. Windows acceptance NOT established.")
+    print(f"Candidate {version} assembled for separate signing and publication.")
 
 
 def api(path):
@@ -188,6 +188,50 @@ def retrieve(report):
                     "-signature", str(output / "manifest.sig"), str(output / "manifest.json")], check=True, timeout=30)
     validate_acceptance(report, manifest, digest(output / "manifest.json"), input_hash())
     return output, manifest
+
+
+def validate_release_run(run, workflow, jobs, source):
+    """Authenticate completed prerequisites without requiring this run to finish itself."""
+    require(run["workflow_id"] == workflow["id"] and run["event"] == "push"
+            and run["head_branch"] == "main" and run["head_sha"] == source
+            and run["repository"]["full_name"] == REPOSITORY,
+            "release requires the current trusted-main workflow")
+    required = {"changes", "gates", "package-check", "package-sign", "kernel-build",
+                "rootfs-build", "candidate-build", "candidate-sign"}
+    for name in required:
+        matches = [job for job in jobs if job["name"] == name]
+        require(len(matches) == 1 and matches[0]["status"] == "completed"
+                and matches[0]["conclusion"] == "success", f"release prerequisite failed: {name}")
+
+
+def release_candidate(directory):
+    """Verify exact signed output from this main run; Windows reports are optional QA."""
+    require(os.environ.get("GITHUB_EVENT_NAME") == "push" and os.environ.get("GITHUB_REF") == "refs/heads/main"
+            and os.environ.get("GITHUB_REPOSITORY") == REPOSITORY, "release requires trusted main")
+    source = git("rev-parse", "HEAD")
+    require(os.environ.get("GITHUB_SHA") == source, "release source mismatch")
+    run_id, attempt = int(os.environ["GITHUB_RUN_ID"]), int(os.environ["GITHUB_RUN_ATTEMPT"])
+    run = api(f"repos/{REPOSITORY}/actions/runs/{run_id}/attempts/{attempt}")
+    workflow = api(f"repos/{REPOSITORY}/actions/workflows/ci.yml")
+    response = api(f"repos/{REPOSITORY}/actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100")
+    require(response["total_count"] <= 100, "unexpected workflow job count")
+    validate_release_run(run, workflow, response["jobs"], source)
+    directory = Path(directory)
+    require(not directory.is_symlink(), "release candidate symlink")
+    manifest = load_json(directory / "manifest.json")
+    trusted = {"source": source, "inputs_sha256": input_hash(), "version": candidate_version(source),
+               "build": {"repository": REPOSITORY, "event": "push", "ref": "refs/heads/main",
+                         "run_id": run_id, "run_attempt": attempt}}
+    validate_manifest(manifest, directory, trusted)
+    subprocess.run(["openssl", "dgst", "-sha256", "-verify", str(ROOT / "windows/trust/release.pem"),
+                    "-signature", str(directory / "manifest.sig"), str(directory / "manifest.json")], check=True, timeout=30)
+    inventory = load_json(directory / "inventory.json")
+    package = inventory["integration"]["filename"]
+    require(re.fullmatch(r"appsynergy-wsl-integration-[0-9.]+-\d+-any\.pkg\.tar\.zst", package), "release package filename")
+    allowed = set(ARTIFACTS) | {"manifest.json", "manifest.sig", "SHA256SUMS", package, package + ".sig"}
+    require({p.name for p in directory.iterdir()} == allowed
+            and all(p.is_file() and not p.is_symlink() for p in directory.iterdir()), "release file inventory")
+    return directory, manifest
 
 
 def acceptance():

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Release only an available, unchanged, maintainer-accepted trusted candidate."""
+"""Release only an available, unchanged, signed, validated trusted-main candidate."""
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,7 +11,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from wslbuild.candidate import REPOSITORY, acceptance, api, git
+from wslbuild.candidate import REPOSITORY, release_candidate, api, git
 from wslbuild.evidence import digest, load_json, require
 from wslbuild.inputs import ROOT
 from wslbuild.publication import build_database, publish
@@ -37,7 +36,7 @@ class GitHubStore:
         require(re.fullmatch(r"appsynergy-wsl-v\d+\.\d+\.\d+", release["tag_name"]), "unexpected latest release tag")
         return release["tag_name"].removeprefix("appsynergy-wsl-v")
 
-    def ensure_release(self, tag, source, acceptance_commit):
+    def ensure_release(self, tag, source, publication_commit):
         ref = self.optional(f"repos/{REPOSITORY}/git/ref/tags/{tag}")
         if ref:
             obj = ref["object"]
@@ -49,7 +48,7 @@ class GitHubStore:
             require(release['target_commitish'] == source, 'conflicting draft source')
         if release is None:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".md") as notes:
-                notes.write(f"AppSynergy WSL {tag.removeprefix('appsynergy-wsl-v')}\n\nAccepted source: `{source}`.\nAcceptance commit: `{acceptance_commit}`.\n\nThese are the exact maintainer-accepted bytes. Windows 11 Enterprise x64 / WSL2 / x86-64-v3.\nSee acceptance.json and signed promotion.json for evidence.\n")
+                notes.write(f"AppSynergy WSL {tag.removeprefix('appsynergy-wsl-v')}\n\nSource: `{source}`.\nPublication commit: `{publication_commit}`.\n\nPublished from the exact signed CI artifacts without rebuilding. Windows 11 Enterprise x64 / WSL2 / x86-64-v3.\nSee the signed manifest and promotion.json for provenance. Windows validation is maintainer-run and is not claimed by CI.\n")
                 notes.flush()
                 subprocess.run(["gh", "release", "create", tag, "--repo", REPOSITORY, "--target", source, "--draft",
                                 "--title", tag, "--notes-file", notes.name], check=True, timeout=60)
@@ -109,7 +108,7 @@ class GitHubStore:
         release = self.optional(f"repos/{REPOSITORY}/releases/tags/{tag}")
         if release is None:
             subprocess.run(["gh", "release", "create", tag, "--repo", REPOSITORY, "--target", source, "--prerelease",
-                            "--title", "Signed WSL integration package channel", "--notes", "Signed package database. Product releases and acceptance evidence are versioned separately.",
+                            "--title", "Signed WSL integration package channel", "--notes", "Signed package database. Product releases are versioned separately.",
                             "--latest=false"], check=True, timeout=60)
             release = api(f"repos/{REPOSITORY}/releases/tags/{tag}")
         release_id = release["id"]
@@ -148,24 +147,25 @@ def main():
     if not secret or not manifest_secret:
         print("Missing WSL_PACKAGE_SIGNING_KEY or WSL_MANIFEST_SIGNING_KEY in isolated release environment", file=sys.stderr)
         return 2
-    candidate, manifest, report = acceptance()
+    require(len(sys.argv) == 2, "usage: scripts/promote CANDIDATE_DIRECTORY")
+    candidate, manifest = release_candidate(sys.argv[1])
     inventory = load_json(candidate / "inventory.json")
     packages = list(candidate.glob("*.pkg.tar.zst"))
     require(len(packages) == 1 and packages[0].name == inventory["integration"]["filename"]
             and digest(packages[0]) == inventory["integration"]["sha256"]
-            and digest(Path(str(packages[0]) + ".sig")) == inventory["integration"]["signature_sha256"], "accepted package bytes changed")
+            and digest(Path(str(packages[0]) + ".sig")) == inventory["integration"]["signature_sha256"], "signed package bytes changed")
     image = load_json(ROOT / "sources/package-builder.lock.json")["image"]
     store = GitHubStore()
-    acceptance_commit = git('rev-parse', 'HEAD')
+    publication_commit = git('rev-parse', 'HEAD')
     latest = store.latest_version()
     require(latest is None or tuple(map(int, latest.split('.'))) <= tuple(map(int, manifest['version'].split('.'))), 'stale promotion')
-    release_id = store.ensure_release('appsynergy-wsl-v' + manifest['version'], manifest['source'], acceptance_commit)
+    release_id = store.ensure_release('appsynergy-wsl-v' + manifest['version'], manifest['source'], publication_commit)
     with tempfile.TemporaryDirectory(prefix="wsl-promotion-") as temp:
         directory = Path(temp)
         public = directory / "public"
         public.mkdir(mode=0o700)
         plan = directory / 'publication-plan.zip'
-        metadata_names = {'appsynergy-wsl.db', 'appsynergy-wsl.db.sig', 'promotion.json', 'promotion.json.sig', 'promotion.json.rsa.sig', 'acceptance.json'}
+        metadata_names = {'appsynergy-wsl.db', 'appsynergy-wsl.db.sig', 'promotion.json', 'promotion.json.sig', 'promotion.json.rsa.sig'}
         reuse_plan = store.download_plan(release_id, plan)
         if reuse_plan:
             with zipfile.ZipFile(plan) as stream:
@@ -175,19 +175,17 @@ def main():
                     require((member.external_attr >> 16) & 0o170000 != 0o120000, 'publication plan symlink')
                 stream.extractall(public)
             proof = load_json(public / 'promotion.json')
-            require(proof['source'] == manifest['source'] and proof['acceptance_commit'] == acceptance_commit
+            require(proof['source'] == manifest['source'] and proof['publication_commit'] == publication_commit
                     and proof['manifest_sha256'] == digest(candidate / 'manifest.json')
-                    and proof['maintainer_acceptance_sha256'] == digest(report)
                     and proof['database_sha256'] == digest(public / 'appsynergy-wsl.db'), 'conflicting publication plan')
         else:
             # No credential enters the isolated metadata builder; package hooks
             # are never executed. Discard repo-add's aliases and auxiliary files.
             build_database(packages[0], public, image)
-            proof = {"schema": 1, "version": manifest["version"], "source": manifest["source"], "acceptance_commit": acceptance_commit,
+            proof = {"schema": 2, "version": manifest["version"], "source": manifest["source"], "publication_commit": publication_commit,
                  "database_sha256": digest(public / 'appsynergy-wsl.db'),
-                 "manifest_sha256": digest(candidate / "manifest.json"), "maintainer_acceptance_sha256": digest(report)}
+                 "manifest_sha256": digest(candidate / "manifest.json")}
             (public / "promotion.json").write_text(json.dumps(proof, indent=2) + "\n")
-            shutil.copyfile(report, public / "acceptance.json")
         signing = directory / "signing"
         signing.mkdir(mode=0o700)
         gpg = ["gpg", "--no-options", "--homedir", str(signing), "--batch"]
@@ -222,7 +220,7 @@ def main():
         files[plan.name] = plan
         files.update({name: public / name for name in metadata_names})
         require(sum(p.stat().st_size for p in files.values()) <= 8 * 1024**3, "release size limit")
-        print(publish(store, manifest["version"], manifest["source"], acceptance_commit, files))
+        print(publish(store, manifest["version"], manifest["source"], publication_commit, files))
     return 0
 
 

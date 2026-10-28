@@ -26,7 +26,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Candidate') {
     if (-not $Version) {
         $release = & $tool -Operation Check
         $Version = $release.Version -creplace '^appsynergy-wsl-v', ''
-        if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'No supported release version was returned' }
+        if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'No release version was returned' }
     }
     & $tool -Operation Stage -Version $Version
     $selection.Version = $Version

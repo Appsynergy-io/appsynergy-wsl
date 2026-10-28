@@ -180,20 +180,16 @@ Ch1iztM5rGg/rhjRILDvDcYRkRsqg+2cqiYPUoSw3qDRAgMBAAE=
 -----END PUBLIC KEY-----
 '@
         [IO.File]::WriteAllText($key, $publicKey)
-        Write-Output 'AppSynergy WSL2 - downloading and verifying the latest accepted release.'
+        Write-Output 'AppSynergy WSL2 - downloading and verifying the latest release.'
         $latest = 'https://github.com/Appsynergy-io/appsynergy-wsl/releases/latest/download'
         try {
             Receive-BoundedFile "$latest/manifest.json" (Join-Path $work 'manifest.json') 1MB
         } catch {
-            throw 'No accepted release could be downloaded. Check the project release status and your network connection. Testing candidates are never installed automatically.'
+            throw 'Release download failed. Check your network connection and the project releases page.'
         }
         Receive-BoundedFile "$latest/manifest.sig" (Join-Path $work 'manifest.sig') 384
         $manifest = Get-VerifiedManifest $work -PublicKey $key -MetadataOnly
         $origin = "https://github.com/Appsynergy-io/appsynergy-wsl/releases/download/appsynergy-wsl-v$($manifest.version)"
-        foreach ($name in @('promotion.json', 'promotion.json.rsa.sig', 'acceptance.json')) {
-            Receive-BoundedFile "$origin/$name" (Join-Path $work $name) 1MB
-        }
-        $null = Get-VerifiedPromotion $work $manifest -PublicKey $key
         if ($manifest.artifacts['tools.zip'].size -gt 16MB) { throw 'Installer archive exceeds size limit' }
         $archive = Join-Path $work 'tools.zip'
         Receive-BoundedFile "$origin/tools.zip" $archive $manifest.artifacts['tools.zip'].size

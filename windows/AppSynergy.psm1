@@ -164,11 +164,10 @@ function Get-VerifiedPromotion {
         }
     } finally { $rsa.Dispose() }
     $proof = ConvertFrom-BoundedJsonText ([Text.UTF8Encoding]::new($false, $true).GetString($promotionBytes))
-    if ($proof.schema -ne 1 -or $proof.version -cne $Manifest.version -or $proof.source -cne $Manifest.source -or
-        $proof.acceptance_commit -cnotmatch '^[0-9a-f]{40}$' -or
-        $proof.manifest_sha256 -cne $Manifest._verified_sha256 -or
-        $proof.maintainer_acceptance_sha256 -cne (Get-Sha256 (Join-Path $Directory 'acceptance.json'))) {
-        throw 'Release promotion does not match this exact candidate and acceptance record'
+    if ($proof.schema -ne 2 -or $proof.version -cne $Manifest.version -or $proof.source -cne $Manifest.source -or
+        $proof.publication_commit -cnotmatch '^[0-9a-f]{40}$' -or
+        $proof.manifest_sha256 -cne $Manifest._verified_sha256) {
+        throw 'Release provenance does not match this exact manifest'
     }
     $proof
 }
@@ -234,7 +233,7 @@ function Copy-VerifiedCandidate {
             }
             $null = Get-VerifiedManifest $temporary -PublicKey $PublicKey
             if ((Get-Sha256 (Join-Path $temporary 'manifest.json')) -cne $hash) { throw 'Candidate changed during staging' }
-            foreach ($name in @('promotion.json', 'promotion.json.rsa.sig', 'acceptance.json')) {
+            foreach ($name in @('promotion.json', 'promotion.json.rsa.sig')) {
                 if (Test-Path -LiteralPath (Join-Path $SourceDirectory $name)) {
                     Copy-Item -LiteralPath (Join-Path $SourceDirectory $name) -Destination (Join-Path $temporary $name)
                 }

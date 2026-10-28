@@ -1,4 +1,4 @@
-"""Idempotent publication policy; accepted binaries are copied, never rebuilt."""
+"""Idempotent publication policy; signed binaries are copied, never rebuilt."""
 
 import hashlib
 import os
@@ -47,7 +47,7 @@ def sha256(data):
     return digest(data) if isinstance(data, Path) else hashlib.sha256(data).hexdigest()
 
 
-def publish(store, version, source, acceptance_commit, files):
+def publish(store, version, source, publication_commit, files):
     """The store owns authenticated transport. Immutable assets never clobber.
 
     The release is made public without advancing latest; public bytes are then
@@ -58,7 +58,7 @@ def publish(store, version, source, acceptance_commit, files):
     latest = store.latest_version()
     require(latest is None or tuple(map(int, latest.split("."))) <= proposed, "stale promotion")
     tag = f"appsynergy-wsl-v{version}"
-    release = store.ensure_release(tag, source, acceptance_commit)
+    release = store.ensure_release(tag, source, publication_commit)
     # Packages are uploaded before database metadata, in both release and channel.
     def order(name):
         return (2 if name.startswith("appsynergy-wsl.db") else 0 if ".pkg.tar.zst" in name else 1, name)
